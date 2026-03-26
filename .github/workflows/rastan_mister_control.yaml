@@ -1,6 +1,11 @@
 name: Rastan MiSTer Control Build
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/rastan_mister_control.yaml
   workflow_dispatch:
 
 jobs:
