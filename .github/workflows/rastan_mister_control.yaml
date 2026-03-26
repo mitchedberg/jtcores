@@ -22,10 +22,12 @@ jobs:
 
       - name: Init public submodules only
         run: |
-          git submodule init
-          git config submodule.modules/jtframe/target/pocket.update none
-          git config submodule.cores/cps3.update none
-          git submodule update --init --recursive --depth=1
+          git submodule update --init --depth=1 \
+            modules/fx68k \
+            modules/jt12 \
+            modules/jt51 \
+            modules/jt5205 \
+            modules/jtopl
 
       - name: Build stock Rastan for MiSTer
         run: |
