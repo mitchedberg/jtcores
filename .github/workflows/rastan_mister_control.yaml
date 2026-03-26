@@ -18,7 +18,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: Init public submodules only
+        run: |
+          git submodule init
+          git config submodule.modules/jtframe/target/pocket.update none
+          git config submodule.cores/cps3.update none
+          git submodule update --init --recursive --depth=1
 
       - name: Build stock Rastan for MiSTer
         run: |
