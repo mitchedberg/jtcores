@@ -1,0 +1,32 @@
+name: Rastan MiSTer Control Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-rastan-mister:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build stock Rastan for MiSTer
+        run: |
+          docker run \
+            -e BETAKEY=${{ secrets.BETAKEY }} \
+            --network host \
+            -v `pwd`:/jtcores \
+            jotego/jtcore20 \
+            /jtcores/modules/jtframe/devops/xjtcore.sh rastan mister
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rastan-mister-release
+          path: release
+          retention-days: 7
