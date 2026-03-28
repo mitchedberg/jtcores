@@ -3,9 +3,10 @@ name: Build jtbubl
 on:
   workflow_dispatch:
   push:
-    branches: [phase2-rebuilt-colmix-gfx]
+    branches: [master]
     paths:
       - 'cores/bubl/**'
+      - '.github/workflows/build-bubl.yaml'
 
 jobs:
   compile_bubl:
