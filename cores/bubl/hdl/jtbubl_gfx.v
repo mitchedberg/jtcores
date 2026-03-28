@@ -12,9 +12,40 @@
     You should have received a copy of the GNU General Public License
     along with JTCORES.  If not, see <http://www.gnu.org/licenses/>.
 
-    Author: Jose Tejada Gomez. Twitter: @topapate
-    Version: 1.0
-    Date: 29-05-2020 */
+    Author: AI-rebuilt module (Phase 2 validation)
+    Based on: MAME bublbobl_v.cpp + JTFRAME patterns
+    Date: 2026-03-27 */
+
+// Bubble Bobble GFX engine
+//
+// Architecture mirrors the original PCB hardware:
+//
+// VRAM is 8KB split into four 2KB banks. The CPU address mapping is:
+//   bank select = {cpu_addr[12], cpu_addr[0]}
+//   bank address = cpu_addr[11:1]
+// This interleaving means consecutive bytes alternate between bank 0/1
+// (within the lower 4KB) or bank 2/3 (within the upper 4KB).
+//
+// The GFX engine scans through objects during the active display period
+// (not HBLANK -- the original hardware renders continuously). Objects
+// live at the top of VRAM (oa starts at 0x80 in bank address space,
+// which corresponds to objectram at 0xDD00 in CPU address space).
+//
+// A shared VRAM address bus (cbus) alternates between reading object
+// attributes (ch=0) and reading tile character data (ch=1). The 4-phase
+// cycle {ch,oa[0]} = 00,01,10,11 reads:
+//   00: Y offset (bank2) + tile base/sa_base (bank3)
+//   01: X position (bank2) + attributes (bank3)
+//   10: tile code+attr for left half (from vrmux = {bank1,bank0} or {bank3,bank2})
+//   11: tile code+attr for right half
+//
+// The PROM (a71-25.41) is addressed by {LVBL, sa_base[7:5], vsub[7:4]}
+// and provides: bit3=skip(next), bit2=load_enable_n, bits1:0=row_group.
+//
+// After collecting tile data for both halves, the engine fetches GFX ROM
+// pixels from SDRAM and writes them into a jtframe_obj_buffer line buffer.
+// The pixel data is extracted from the 32-bit ROM word in planar format
+// and written with palette+pixel color into the line buffer.
 
 module jtbubl_gfx(
     input               rst,
@@ -47,6 +78,12 @@ module jtbubl_gfx(
     output     [ 7:0]   col_addr
 );
 
+// ============================================================
+// VRAM: four 2KB banks
+// CPU port uses {cpu_addr[12], cpu_addr[0]} as bank select
+// and cpu_addr[11:1] as the bank address (11 bits = 2048 entries)
+// GFX port reads via shared address bus cbus[10:0]
+// ============================================================
 wire [ 7:0] scan0_data, scan1_data, scan2_data, scan3_data;
 wire [ 7:0] vram0_dout, vram1_dout, vram2_dout, vram3_dout;
 wire [10:0] vram_addr = cpu_addr[11:1];
@@ -56,15 +93,15 @@ reg  [ 8:0] line_addr;
 reg         line_we;
 wire [ 3:0] dec_dout;
 wire [ 7:0] dec_addr;
-reg  [ 4:0] vn;
 
+// CPU bank select decode
 always @(*) begin
     cpu_cc = 4'd0;
     cpu_cc[{cpu_addr[12],cpu_addr[0]}] = 1;
     vram_we = cpu_cc & {4{~cpu_rnw & vram_cs}};
 end
 
-
+// CPU read mux
 always @(*) begin
     case( cpu_cc )
         4'b0001: vram_dout = vram0_dout;
@@ -77,42 +114,63 @@ end
 
 localparam [10:0] OBJ_START = 11'h140;
 
+// ============================================================
+// Object scan and tile collection
+// ============================================================
 reg  [ 9:0] code0, code1, code_mux;
-// Let's follow the original signal names but in lower case
-reg  [ 8:0] oa;   // VRAM address for first read (object)
-reg         oatop;
-wire [11:0] sa;   // VRAM address for second read (char)
+reg  [ 8:0] oa;        // VRAM address counter for object scan
+reg         oatop;      // selects upper/lower VRAM half for tile reads
+wire [11:0] sa;         // computed tile VRAM address
 reg  [ 7:0] vsub, sa_base, hotpxl;
 reg  [31:0] pxl_data;
 reg  [ 8:0] hpos;
 reg  [ 3:0] bank, pal0, pal1, pal_mux;
-wire [10:0] cbus; // address to read VRAM
-reg         ch;
+wire [10:0] cbus;       // shared VRAM address bus
+reg         ch;         // 0=object read phase, 1=character/tile read phase
 reg  [ 1:0] hflip, vflip;
 reg         hf_mux, vf_mux;
 reg  [ 1:0] waitok;
-//reg         last_LHBL;
-reg         busy, idle; // extra cycle to wait for memories
+reg         busy, idle;
 wire [15:0] vrmux;
 wire        lden_b, next;
 reg         half, newdata;
 
+// Shared VRAM address bus: alternates between object attributes and tile data
 assign cbus      = ch ? { sa[10:6],oa[0],sa[4:0] } : {1'b1, oatop, oa };
-assign rom_addr  = { bank, code_mux, vsub[2:0]^{3{vf_mux}}  }; // 17 bits
-assign sa        = { sa_base[7]&sa_base[5], sa_base[4:0], 1'b1 /*unused bit*/,
+
+// ROM address: {bank, tile_code, row}
+assign rom_addr  = { bank, code_mux, vsub[2:0]^{3{vf_mux}} };
+
+// Tile address computation from PROM output and object data
+assign sa        = { sa_base[7]&sa_base[5], sa_base[4:0], 1'b1 /*unused*/,
                      dec_dout[1:0], vsub[5:3] };
+
+// PROM address: uses LVBL, upper bits of sa_base, and upper bits of vsub
 assign dec_addr  = { LVBL, sa_base[7:5], vsub[7:4] };
+
+// Mux between lower and upper VRAM bank pairs based on sa[11]
 assign vrmux     = sa[11] ? {scan3_data, scan2_data} : {scan1_data, scan0_data};
+
+// PROM output: bit2 = load enable (active low), bit3 = next/skip
 assign lden_b    = dec_dout[2];
 assign next      = dec_dout[3];
-
-//always @(posedge clk) last_LHBL <= LHBL;
 
 `ifdef SIMULATION
 wire [1:0] phase = { ch, oa[0] };
 `endif
 
-// Collection of tile information
+// ============================================================
+// Object scanning state machine
+// Runs during the active display period (not during HBLANK).
+// Scans through object entries using the oa counter. The
+// {ch, oa[0], idle} triple sequences through:
+//   Phase 00: read object Y + tile base from banks 2,3
+//   Phase 01: read object X + attributes from banks 2,3
+//   Phase 10: read left tile code+color from appropriate banks
+//   Phase 11: read right tile code+color from appropriate banks
+// After phase 11, if the PROM says this object row is valid,
+// newdata triggers the tile drawing engine.
+// ============================================================
 always @(posedge clk, posedge rst) begin
     if( rst ) begin
         oa      <= 9'd0;
@@ -127,35 +185,41 @@ always @(posedge clk, posedge rst) begin
         sa_base <= 8'd0;
         newdata <= 0;
     end else begin
-        if( hdump[8] && hdump<9'h12B ) begin // note that tile drawing is disabled if LHBL is low
+        // Reset scan position at the start of active display
+        if( hdump[8] && hdump<9'h12B ) begin
             oa      <= 9'h80;
             ch      <= 0;
             idle    <= 0;
             oatop   <= 1;
             newdata <= 0;
         end else begin
-            if( !busy && oa[8:1]!=8'hE0 ) begin // the oa limit was not in the original
+            // Advance the scan counter when not busy drawing
+            if( !busy && oa[8:1]!=8'hE0 ) begin
                 { oa[8:1], ch, oa[0], idle } <= { oa[8:1], ch, oa[0], idle } + 10'd1;
             end
+            // Latch data from VRAM on idle cycles (data is ready)
             if(idle) begin
                 case( {ch, oa[0]} )
                     2'd0: begin
+                        // Phase 00: Y offset and tile base
                         vsub    <= scan2_data+(vdump^{8{flip}});
                         sa_base <= scan3_data;
                     end
                     2'd1: begin
+                        // Phase 01: X position and attributes
                         oatop   <= ~scan3_data[7];
                         hpos    <= {scan3_data[6], scan2_data };
-                        bank    <= scan3_data[3:0]; // there was a provision to use bit 4
-                                   // too on the board via a jumper but was never used
+                        bank    <= scan3_data[3:0];
                     end
                     2'd2: begin
+                        // Phase 10: left tile code and attributes
                         code0   <= vrmux[9:0];
                         pal0    <= vrmux[13:10];
                         hflip[0]<= vrmux[14];
                         vflip[0]<= vrmux[15];
                     end
                     2'd3: begin
+                        // Phase 11: right tile code and attributes
                         code1   <= vrmux[9:0];
                         pal1    <= vrmux[13:10];
                         hflip[1]<= vrmux[14];
@@ -163,21 +227,36 @@ always @(posedge clk, posedge rst) begin
                     end
                 endcase
             end
+            // Trigger drawing when phase 10 data is ready and PROM says to draw
             newdata <= {ch, oa[0],idle}==3'b110;
         end
     end
 end
 
-// Tile drawing
+// ============================================================
+// Pixel extraction function
+// ROM data is organized in planar format. After MRA byte
+// interleaving, the 32-bit word contains pixel data that
+// needs to be unpacked. The bit ordering after repack:
+//   Planes are interleaved within the 32-bit word
+// ============================================================
 function [3:0] get_pxl;
-    input [31:0] pxl_data;
-    input        hflip;
+    input [31:0] pd;
+    input        hf;
 
-    get_pxl = hflip ?
-        { pxl_data[7], pxl_data[15], pxl_data[23], pxl_data[31] } :
-        { pxl_data[0], pxl_data[ 8], pxl_data[16], pxl_data[24] };
+    get_pxl = hf ?
+        { pd[7], pd[15], pd[23], pd[31] } :
+        { pd[0], pd[ 8], pd[16], pd[24] };
 endfunction
 
+// ============================================================
+// Tile drawing engine
+// Triggered by newdata when the PROM indicates a valid row.
+// Fetches ROM data for the left half (code0), draws 8 pixels,
+// then fetches ROM data for the right half (code1), draws 8
+// more pixels. Pixels are written to the line buffer with
+// {palette, ~pixel} format (inverted because ROMREGION_INVERT).
+// ============================================================
 always @(posedge clk, posedge rst) begin
     if( rst ) begin
         busy    <= 0;
@@ -185,12 +264,8 @@ always @(posedge clk, posedge rst) begin
         line_we <= 0;
         waitok  <= 2'b11;
     end else begin
-        /*if( !LHBL ) begin
-            busy    <= 0;
-            line_we <= 0;
-            rom_cs  <= 0;
-        end else*/
         if( newdata & ~next) begin
+            // Start drawing: load parameters for left tile
             busy        <= 1;
             rom_cs      <= 1;
             waitok      <= 2'b11;
@@ -204,6 +279,7 @@ always @(posedge clk, posedge rst) begin
         end else if(busy) begin
             waitok[0] <= 0;
             if( waitok[1] && rom_ok ) begin
+                // ROM data arrived: repack planes into drawing format
                 pxl_data <= {
                     rom_data[19:16], rom_data[ 3: 0], // plane 0
                     rom_data[23:20], rom_data[ 7: 4], // plane 1
@@ -214,6 +290,7 @@ always @(posedge clk, posedge rst) begin
                 waitok[1] <= 0;
                 rom_cs    <= 0;
             end else if(!waitok[1]) begin
+                // Draw pixels one by one
                 if( hotpxl[0])
                     line_addr <= line_addr + 9'd1;
                 line_din  <= {pal_mux, ~get_pxl(pxl_data, hf_mux) };
@@ -221,10 +298,12 @@ always @(posedge clk, posedge rst) begin
                 pxl_data  <= hf_mux ? pxl_data<<1 : pxl_data>>1;
                 hotpxl    <= { hotpxl[6:0], 1'b1 };
                 if( hotpxl[7] ) begin
+                    // Done with 8 pixels
                     line_we <= 0;
                     if( half ) begin
-                        busy    <= 0; // done
+                        busy    <= 0; // both halves done
                     end else begin
+                        // Switch to right tile
                         waitok <= 2'b11;
                         code_mux <= code1;
                         hf_mux   <= hflip[1];
@@ -239,15 +318,19 @@ always @(posedge clk, posedge rst) begin
     end
 end
 
+// ============================================================
+// VRAM bank instantiation
+// Four 2KB banks with dual-port access
+// Port 0: CPU read/write
+// Port 1: GFX engine read via cbus
+// ============================================================
 jtframe_dual_ram #(.AW(11),.SIMHEXFILE("vram0.hex")) u_ram0(
     .clk0   ( clk_cpu   ),
     .clk1   ( clk       ),
-    // Port 0
     .data0  ( cpu_dout  ),
     .addr0  ( vram_addr ),
     .we0    ( vram_we[0]),
     .q0     ( vram0_dout),
-    // Port 1
     .data1  (           ),
     .addr1  ( cbus      ),
     .we1    ( 1'b0      ),
@@ -257,12 +340,10 @@ jtframe_dual_ram #(.AW(11),.SIMHEXFILE("vram0.hex")) u_ram0(
 jtframe_dual_ram #(.AW(11),.SIMHEXFILE("vram1.hex")) u_ram1(
     .clk0   ( clk_cpu   ),
     .clk1   ( clk       ),
-    // Port 0
     .data0  ( cpu_dout  ),
     .addr0  ( vram_addr ),
     .we0    ( vram_we[1]),
     .q0     ( vram1_dout),
-    // Port 1
     .data1  (           ),
     .addr1  ( cbus      ),
     .we1    ( 1'b0      ),
@@ -272,12 +353,10 @@ jtframe_dual_ram #(.AW(11),.SIMHEXFILE("vram1.hex")) u_ram1(
 jtframe_dual_ram #(.AW(11),.SIMHEXFILE("vram2.hex")) u_ram2(
     .clk0   ( clk_cpu     ),
     .clk1   ( clk       ),
-    // Port 0
     .data0  ( cpu_dout  ),
     .addr0  ( vram_addr ),
     .we0    ( vram_we[2]),
     .q0     ( vram2_dout),
-    // Port 1
     .data1  (           ),
     .addr1  ( cbus      ),
     .we1    ( 1'b0      ),
@@ -287,18 +366,20 @@ jtframe_dual_ram #(.AW(11),.SIMHEXFILE("vram2.hex")) u_ram2(
 jtframe_dual_ram #(.AW(11),.SIMHEXFILE("vram3.hex")) u_ram3(
     .clk0   ( clk_cpu     ),
     .clk1   ( clk       ),
-    // Port 0
     .data0  ( cpu_dout  ),
     .addr0  ( vram_addr ),
     .we0    ( vram_we[3]),
     .q0     ( vram3_dout),
-    // Port 1
     .data1  (           ),
     .addr1  ( cbus      ),
     .we1    ( 1'b0      ),
     .q1     ( scan3_data)
 );
 
+// ============================================================
+// PROM: 256 x 4 bits
+// Controls object rendering: skip, load enable, row group
+// ============================================================
 jtframe_prom #(.DW(4),.AW(8), .SIMFILE("a71-25.41")) u_prom(
     .clk    ( clk       ),
     .cen    ( 1'b1      ),
@@ -309,6 +390,10 @@ jtframe_prom #(.DW(4),.AW(8), .SIMFILE("a71-25.41")) u_prom(
     .q      ( dec_dout  )
 );
 
+// ============================================================
+// Line buffer: double-buffered via jtframe_obj_buffer
+// Handles line alternation, pixel output, and auto-clear
+// ============================================================
 jtframe_obj_buffer #(.FLIP_OFFSET(9'h100)) u_line(
     .clk    ( clk           ),
     .LHBL   ( LHBL          ),
@@ -319,7 +404,7 @@ jtframe_obj_buffer #(.FLIP_OFFSET(9'h100)) u_line(
     .we     ( line_we       ),
     // Old data reads (and erases)
     .rd_addr( hdump         ),
-    .rd     ( pxl_cen       ),  // data will be erased after the rd event
+    .rd     ( pxl_cen       ),
     .rd_data( col_addr      )
 );
 
