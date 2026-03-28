@@ -14,9 +14,16 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: Init needed submodules
+      - name: Init submodules
         run: |
-          git submodule update --init --recursive modules/jtframe modules/jt12 modules/jtopl modules/jt51 modules/jt5205 modules/jtkcpu modules/fx68k || true
+          # Convert SSH URLs to HTTPS for public repos
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          # Init top-level modules needed for bubl
+          git submodule update --init modules/jtframe modules/jt12 modules/jtopl modules/jt51 modules/jt5205 modules/jtkcpu modules/fx68k || true
+          # Init nested submodules within jt12 (jt49 is needed for jt03)
+          cd modules/jt12 && git submodule update --init --recursive || true
+          cd ../jtopl && git submodule update --init --recursive || true
+          cd ../jtframe && git submodule update --init --recursive || true
       - id: compile
         run: |
           docker run --network host -v $(pwd):/jtcores jotego/jtcore20 /jtcores/modules/jtframe/devops/xjtcore.sh bubl mister
