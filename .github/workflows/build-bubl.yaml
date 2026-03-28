@@ -11,12 +11,12 @@ on:
 jobs:
   compile_bubl:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: Init needed submodules only
+      - name: Init needed submodules
         run: |
-          git submodule update --init modules/jtframe modules/jt12 modules/jtopl modules/jt51 modules/jt5205 modules/jtkcpu modules/jt900h modules/jt680x modules/fx68k || true
-          git -C modules/jtframe submodule update --init target/mister/sys || true
+          git submodule update --init --recursive modules/jtframe modules/jt12 modules/jtopl modules/jt51 modules/jt5205 modules/jtkcpu modules/fx68k || true
       - id: compile
         run: |
           docker run --network host -v $(pwd):/jtcores jotego/jtcore20 /jtcores/modules/jtframe/devops/xjtcore.sh bubl mister
