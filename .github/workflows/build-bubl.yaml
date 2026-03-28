@@ -16,18 +16,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Clone needed submodules manually
+      - name: Clone needed submodules
         run: |
-          # Clone only the public repos we need, with specific commits
+          rm -rf modules/fx68k modules/jt12 modules/jtopl modules/jt51 modules/jt5205 modules/jtkcpu modules/jtframe
           git clone --depth 1 https://github.com/jtfpga/fx68k modules/fx68k
           git clone --depth 1 --recursive https://github.com/jotego/jt12 modules/jt12
           git clone --depth 1 --recursive https://github.com/jotego/jtopl modules/jtopl
           git clone --depth 1 https://github.com/jotego/jt51 modules/jt51
           git clone --depth 1 https://github.com/jotego/jt5205 modules/jt5205
           git clone --depth 1 https://github.com/jotego/jtkcpu modules/jtkcpu
-          # jtframe - clone and init only mister sys (skip pocket)
           git clone --depth 1 https://github.com/jotego/jtframe modules/jtframe
-          # Verify key files exist
           ls modules/jt12/cfg/jt03.yaml modules/jt12/jt49/hdl/jt49.v modules/jtopl/cfg/jt26.yaml
       - id: compile
         run: |
