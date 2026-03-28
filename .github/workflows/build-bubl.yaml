@@ -13,8 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
+      - name: Init needed submodules only
+        run: |
+          git submodule update --init modules/jtframe modules/jt12 modules/jtopl modules/jt51 modules/jt5205 modules/jtkcpu modules/jt900h modules/jt680x modules/fx68k || true
+          git -C modules/jtframe submodule update --init target/mister/sys || true
       - id: compile
         run: |
           docker run --network host -v $(pwd):/jtcores jotego/jtcore20 /jtcores/modules/jtframe/devops/xjtcore.sh bubl mister
