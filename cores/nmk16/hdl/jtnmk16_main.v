@@ -74,7 +74,7 @@ wire [15:0] cpu_dout;
 reg  [15:0] cpu_din;
 reg         clr_int;
 wire        intn, bus_cs, bus_busy;
-
+reg         sprite_fix;
 assign main_addr  = A[17:1];
 assign ram_addr   = A[15:1];
 assign ram_din    = cpu_dout;
@@ -86,7 +86,7 @@ assign ram_we    = ram_cs & ~RnW;
 assign BUSn      = ASn | (LDSn & UDSn);
 assign IPLn      = intn ? 3'b111 : 3'b110;   // IRQ1 (vblank)
 assign VPAn      = ~(!ASn && FC == 3'b111);
-assign bus_cs    = main_cs | ram_cs | pal_cs | bgvram_cs | fgvram_cs | scroll_cs | io_cs;
+assign bus_cs    = main_cs | ram_cs | pal_cs | bgvram_cs | fgvram_cs | scroll_cs | io_cs | sprite_fix;
 assign bus_busy  = (main_cs & ~main_ok) | (ram_cs & ~ram_ok);
 
 // Address decode — combinational
@@ -97,6 +97,7 @@ always @* begin
     main_cs    = !ASn  && A[23:18] == 6'h00;    // 0x000000-0x03FFFF (0>>18=0x00)
     ram_cs     = !BUSn && A[23:16] == 8'h0B;    // 0x0B0000-0x0BFFFF (0x0B0000>>16=0x0B)
     io_cs      = !BUSn && A[23:5]  == 19'h06000; // 0x0C0000-0x0C001F (0x0C0000>>5=0x6000)
+    sprite_fix = !BUSn && A[23:1] == 23'h022011;  // byte 0x044022-0x044023
     scroll_cs  = !BUSn && A[23:3]  == 21'h018800; // 0x0C4000-0x0C4007 (0x0C4000>>3=0x18800)
     pal_cs     = !BUSn && A[23:11] == 13'h0190;  // 0x0C8000-0x0C87FF (0x0C8000>>11=0x190)
     bgvram_cs  = !BUSn && A[23:14] == 10'h033;   // 0x0CC000-0x0CFFFF (0x0CC000>>14=0x33)
@@ -124,6 +125,7 @@ always @(posedge clk) begin
               bgvram_cs ? mbg_dout  :
               fgvram_cs ? mfg_dout  :
               scroll_cs ? mscroll_dout :
+              sprite_fix ? 16'h0003 :
               io_cs    ? (A[3:1]==3'd0 ? {8'hFF, joystick1}             :
                           A[3:1]==3'd1 ? {8'hFF, joystick2}             :
                           A[3:1]==3'd2 ? {dipsw[14:8], LVBL, dipsw[7:0]} :
@@ -189,16 +191,17 @@ jtframe_m68k u_cpu(
     .IPLn       ( IPLn          )
 );
 
+
 `ifdef SIMULATION
 reg [31:0] diag_cnt;
 always @(posedge clk) if(cpu_cen) begin
     diag_cnt <= diag_cnt + 1;
-    if(diag_cnt[16:0]==0) $display("NMK16: A=%06X RnW=%b cnt=%0d main=%b ram=%b bgvram=%b pal=%b", {A,1'b0}, RnW, diag_cnt, main_cs, ram_cs, bgvram_cs, pal_cs);
+    if(diag_cnt[19:0]==0) $display("NMK16: A=%06X RnW=%b cs:m=%b r=%b bg=%b pal=%b", {A,1'b0}, RnW, main_cs, ram_cs, bgvram_cs, pal_cs);
 end
 `endif`else
 initial begin
     main_cs = 0; ram_cs = 0;
-    pal_cs = 0; bgvram_cs = 0; fgvram_cs = 0; scroll_cs = 0; io_cs = 0;
+    pal_cs = 0; bgvram_cs = 0; fgvram_cs = 0; scroll_cs = 0; io_cs = 0; sprite_fix = 0;
     snd_latch = 0;
     snd_stb = 0;
 end
