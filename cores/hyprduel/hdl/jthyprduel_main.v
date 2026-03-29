@@ -80,7 +80,7 @@ jtframe_m68k cpu(
     .ASn(ASn),
     .UDSn(UDSn),
     .LDSn(LDSn),
-    .RW(RnW),
+    .eRWn(RnW),
     .E(1'b0),
     .VPA_n(VPAn),
     .DTACK_n(DTACKn),

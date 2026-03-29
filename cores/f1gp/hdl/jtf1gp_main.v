@@ -97,10 +97,9 @@ assign intn      = LVBL;
 // Clock enable (12 MHz from 48 MHz)
 jtframe_68kdtack_cen #(.W(2)) u_cen(
     .clk        ( clk       ),
-    
     .cpu_cen    ( cpu_cen   ),
     .cpu_cenb   ( cpu_cenb  ),
-        .DTACKn     ( DTACKn    ),
+    .DTACKn     ( DTACKn    ),
 );
 
 // Address decode

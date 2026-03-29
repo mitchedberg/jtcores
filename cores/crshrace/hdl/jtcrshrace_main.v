@@ -168,7 +168,7 @@ jtframe_m68k #(.FASTCPU(1)) cpu (
     .cpu_cen    ( cpu_cen    ),
     .cpu_cenb   ( cpu_cenb   ),
     .rst        ( rst        ),
-    .dtack_n    ( ~bus_busy  ),
+    .DTACKn    ( ~bus_busy  ),
     .fc         ( FC         ),
     .a          ( A          ),
     .as_n       ( ASn        ),
