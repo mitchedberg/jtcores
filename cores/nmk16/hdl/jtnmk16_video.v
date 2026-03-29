@@ -47,6 +47,7 @@ module jtnmk16_video(
     input         fgvram_cs,   // unused this step
     input         pal_cs,
     input         scroll_cs,
+    input         sprite_cs,
     input         tilebank,
     // CPU read-back
     output [15:0] bgvram_dout,
@@ -58,6 +59,10 @@ module jtnmk16_video(
     output        gfx_cs,
     input  [31:0] gfx_data,
     input         gfx_ok,
+    output [21:2] spr_addr,
+    output        spr_cs,
+    input  [31:0] spr_data,
+    input         spr_ok,
     // Pixel output (5 bits per channel)
     output [4:0]  red,
     output [4:0]  green,
@@ -168,6 +173,12 @@ endgenerate
 wire [16:0] bg_rom_addr;
 wire        bg_rom_cs;
 wire  [7:0] bg_pxl;       // {pal[3:0], pixel[3:0]}
+wire [11:1] spr_ram_addr;
+wire [15:0] spr_ram_q;
+wire  [7:0] spr_pxl;
+wire        spr_opaque = spr_pxl[3:0] != 4'hF;
+wire [12:1] cpu_spr_addr = cpu_addr[12:1];
+wire        spr_we = sprite_cs & ~cpu_rnw;
 
 jtframe_scroll #(
     .SIZE   ( 16 ),
@@ -204,12 +215,34 @@ jtframe_scroll #(
 assign gfx_cs   = bg_rom_cs;
 assign gfx_addr = { 3'b0, bg_rom_addr };
 
+jtnmk16_sprite u_sprite(
+    .rst          ( rst          ),
+    .clk          ( clk          ),
+    .pxl_cen      ( pxl_cen      ),
+    .vdump        ( vdump        ),
+    .hdump        ( hdump        ),
+    .LHBL         ( LHBL         ),
+    .LVBL         ( LVBL         ),
+    .HS           ( HS           ),
+    .spr_ram_addr ( spr_ram_addr ),
+    .spr_ram_q    ( spr_ram_q    ),
+    .cpu_spr_addr ( cpu_spr_addr ),
+    .cpu_dout     ( cpu_dout     ),
+    .spr_we       ( spr_we       ),
+    .spr_addr     ( spr_addr     ),
+    .spr_cs       ( spr_cs       ),
+    .spr_data     ( spr_data     ),
+    .spr_ok       ( spr_ok       ),
+    .spr_pxl      ( spr_pxl      )
+);
+
 // -------------------------------------------------------
 // Palette lookup
 // Format: R[4:1]=bits[15:12], G[4:1]=bits[11:8],
 //         B[4:1]=bits[7:4],   R[0]=bit[3], G[0]=bit[2], B[0]=bit[1]
 // -------------------------------------------------------
-assign pal_rd_addr = { 2'b0, bg_pxl[7:4], bg_pxl[3:0] };
+assign pal_rd_addr = spr_opaque ? { 2'b01, spr_pxl[7:4], spr_pxl[3:0] } :
+                                 { 2'b00, bg_pxl[7:4], bg_pxl[3:0] };
 
 assign red   = { pal_q[15:12], pal_q[3]   };
 assign green = { pal_q[11:8],  pal_q[2]   };

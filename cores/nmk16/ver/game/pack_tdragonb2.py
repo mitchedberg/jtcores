@@ -4,7 +4,7 @@
 SDRAM layout:
   BA0 (0x000000): 68000 program (a3+a4 interleaved, 256KB), padded to 0x40000
   BA1 (0x040000): OKI sound ROM (shinea2a2-01, 512KB)
-  BA2 (0x0C0000): GFX tiles - 91070.4 BG (1MB) + 91070.5 sprites (1MB) + 91070.6 text (128KB)
+  BA2 (0x0C0000): GFX tiles - 91070.5 BG (1MB) + 91070.4 sprites (1MB) + 91070.6 text (128KB)
   BA3 (0x2E0000): RAM only, no ROM data
 """
 import os
@@ -40,16 +40,16 @@ while len(rom) < BA2_START:
     rom.extend(b'\xFF')
 
 # BA2: GFX tiles
-# 91070.4 = BG tiles (16x16), 1MB
-bg = open(os.path.join(romdir, '91070.4'), 'rb').read()
-print(f"BA2 BG tiles (91070.4): {len(bg)} bytes = {len(bg)//1024}KB")
+# 91070.5 = BG tiles (16x16), 1MB
+bg = open(os.path.join(romdir, '91070.5'), 'rb').read()
+print(f"BA2 BG tiles (91070.5): {len(bg)} bytes = {len(bg)//1024}KB")
 rom.extend(bg)
 
-# 91070.5 = sprites (16x16), 1MB; MAME uses ROM_LOAD16_WORD_SWAP.
+# 91070.4 = sprites (16x16), 1MB; MAME uses ROM_LOAD16_WORD_SWAP.
 # JTFRAME downloader also byte-swaps 16-bit words, so the two swaps cancel.
 # Load raw — rendering will handle any remaining byte-order differences.
-spr = open(os.path.join(romdir, '91070.5'), 'rb').read()
-print(f"BA2 sprites  (91070.5): {len(spr)} bytes = {len(spr)//1024}KB")
+spr = open(os.path.join(romdir, '91070.4'), 'rb').read()
+print(f"BA2 sprites  (91070.4): {len(spr)} bytes = {len(spr)//1024}KB")
 rom.extend(spr)
 
 # 91070.6 = text/fg tiles (8x8), 128KB

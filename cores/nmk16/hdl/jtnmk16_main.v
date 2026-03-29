@@ -42,6 +42,7 @@ module jtnmk16_main(
     output reg           bgvram_cs,
     output reg           fgvram_cs,
     output reg           scroll_cs,
+    output reg           sprite_cs,
     output reg           io_cs,
 
     // CPU address for video BRAM writes
@@ -90,7 +91,7 @@ assign ram_we    = ram_cs & ~RnW;
 assign BUSn      = ASn | (LDSn & UDSn);
 assign IPLn      = intn ? 3'b111 : 3'b110;   // IRQ1 (vblank)
 assign VPAn      = ~(!ASn && FC == 3'b111);
-wire mapped_cs  = main_cs | ram_cs | pal_cs | bgvram_cs | fgvram_cs | scroll_cs | io_cs | sprite_fix;
+wire mapped_cs  = main_cs | ram_cs | pal_cs | bgvram_cs | fgvram_cs | scroll_cs | sprite_cs | io_cs | sprite_fix;
 wire unmapped_cs = !BUSn & ~mapped_cs;  // catch-all: any bus cycle not matching a known region
 assign bus_cs    = mapped_cs | unmapped_cs;   // always generate DTACK for any bus cycle
 assign bus_busy  = (main_cs & ~main_ok) | (ram_cs & ~ram_ok);
@@ -104,6 +105,7 @@ always @* begin
     ram_cs     = !BUSn && A[23:16] == 8'h0B;    // 0x0B0000-0x0BFFFF (0x0B0000>>16=0x0B)
     io_cs      = !BUSn && A[23:5]  == 19'h06000; // 0x0C0000-0x0C001F (0x0C0000>>5=0x6000)
     sprite_fix = !BUSn && A[23:1] == 23'h022011;  // byte 0x044022-0x044023
+    sprite_cs  = !BUSn && A[23:12] == 12'h0B8;   // 0x0B8000-0x0B8FFF
     scroll_cs  = !BUSn && A[23:3]  == 21'h018800; // 0x0C4000-0x0C4007 (0x0C4000>>3=0x18800)
     pal_cs     = !BUSn && A[23:11] == 13'h0190;  // 0x0C8000-0x0C87FF (0x0C8000>>11=0x190)
     bgvram_cs  = !BUSn && A[23:14] == 10'h033;   // 0x0CC000-0x0CFFFF (0x0CC000>>14=0x33)
@@ -180,7 +182,7 @@ jtframe_68kdtack_cen #(.W(5)) u_dtack(
     .bus_ack    ( 1'b0          ),
     .ASn        ( ASn           ),
     .DSn        ( {UDSn, LDSn}  ),
-    .num        ( 5'd5          ),
+    .num        ( 4'd5          ),
     .den        ( 5'd24         ),
     .DTACKn     ( DTACKn        ),
     .wait2      ( 1'b0          ),
@@ -251,7 +253,7 @@ end
 `endif`else
 initial begin
     main_cs = 0; ram_cs = 0;
-    pal_cs = 0; bgvram_cs = 0; fgvram_cs = 0; scroll_cs = 0; io_cs = 0; sprite_fix = 0;
+    pal_cs = 0; bgvram_cs = 0; fgvram_cs = 0; scroll_cs = 0; sprite_cs = 0; io_cs = 0; sprite_fix = 0;
     snd_latch = 0;
     snd_stb = 0;
     tilebank = 0;
