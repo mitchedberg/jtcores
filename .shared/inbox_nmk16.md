@@ -1,55 +1,63 @@
-# NMK16 Task: Sim Diagnostics + Video Quality Check
+# NMK16 Task: 300-Frame Sim Analysis + BG VRAM Status
 
 **From:** Claude orchestrator
-**Date:** 2026-03-29 (updated)
+**Date:** 2026-03-29 (updated — research pre-loaded)
 
-## Status: Sprite format VERIFIED — new task below
+## Status: Sprite format VERIFIED — sim already complete
 
 Previous task (sprite format verification) is DONE. See findings.md.
-Result: our sprite attribute layout EXACTLY matches MAME nmk16spr.cpp. No changes needed.
-Also confirmed: sprite transparency = pen 15. Correct.
+Result: sprite attribute layout EXACTLY matches MAME nmk16spr.cpp. No changes needed.
 
-## New Task: NMK16 300-Frame Sim with Enhanced Video Diagnostics
+A 300-frame sim already ran. Frames are saved in `cores/nmk16/ver/tdragon/frames/`.
+You do NOT need to re-run the sim.
 
-The 600-frame sim produced visible video at frame 17+. Now we need to verify video quality.
+## Task: Analyze Existing Sim Frames + Log
 
-### Step 1: Run a 100-frame sim with enhanced diagnostics
+### Step 1: View frames 17, 50, 100, 200, 300
 
-From `cores/nmk16/ver/tdragon/`:
+Read frames from `cores/nmk16/ver/tdragon/frames/`:
+- `frame_00017.jpg`
+- `frame_00050.jpg`
+- `frame_00100.jpg`
+- `frame_00200.jpg`
+- `frame_00300.jpg`
+
+Describe each: colors, sprite shapes visible, changes between frames.
+
+### Step 2: Check existing log for VID STATUS
+
+Check `/tmp/nmk16_600f.log` for VID STATUS entries:
 ```bash
-JTROOT=/Volumes/2TB_20260220/Projects/jtcores JTFRAME=$JTROOT/modules/jtframe MODULES=$JTROOT/modules CORES=$JTROOT/cores JTBIN=$JTROOT/release PATH=$PATH:$JTFRAME/bin jtsim -frame 100 2>&1 | tee /tmp/nmk16_100f_v2.log
+grep "VID STATUS" /tmp/nmk16_600f.log | grep -v "code=000\|scrx=000\|scry=000" | head -20
+grep -c "VID STATUS" /tmp/nmk16_600f.log
 ```
 
-### Step 2: Analyze the output
+Report: Are any VID STATUS entries showing non-zero `code`, `scrx`, or `scry` values?
 
-From the log, extract:
-1. All `VID STATUS` lines — are any showing non-zero `code`, `scrx`, or `scry`?
-2. Are there any `bg=1` or `pal=1` entries in the `NMK16: A=...` periodic prints?
-3. How many frames were saved? (check `frames/` directory)
+### Step 3: Check BG VRAM write activity
 
-### Step 3: View frame content
+BG VRAM is at 0x0CC000–0x0CFFFF. From the existing log, check if the CPU ever writes there:
+```bash
+grep "A=0CC\|A=0CD\|A=0CE\|A=0CF" /tmp/nmk16_600f.log | head -10
+```
 
-Read frames 17, 18, 20, 50, 100 from `cores/nmk16/ver/tdragon/frames/` and describe what you see:
-- Colors present?
-- Any recognizable patterns (text, sprites, solid areas)?
-- Changes between frames?
+## MAME-Verified Context (no MAME research needed)
 
-### Step 4: Check BG VRAM write issue
+From findings.md (already confirmed):
+- BG VRAM (0x0CC000–0x0CFFFF) is intentionally zero during tdragonb2 attract mode
+- Red background = palette[0] = red, which the CPU writes at boot
+- Sprites animate from right to left during attract mode = correct behavior
+- BG tiles only populate during gameplay, not attract mode
 
-The CPU appears to never write to BG VRAM (0x0CC000-0x0CFFFF) in 600 frames.
-Verify this by searching the sim log for any CPU access with `A` in range 0x0CC000-0x0CFFFF.
-Also check: does MAME's tdragonb2 ever write to 0x0CC000 during the attract mode?
-  Hint: look at MAME's debugger memory map for tdragonb2 (`tdragonb2_map`) — is BG VRAM
-  used during attract mode or only during gameplay?
+So if BG VRAM writes are zero, that is EXPECTED — not a bug.
 
-### What to return
+## What to return
 
 Concise report:
-- VID STATUS summary (non-zero values seen?)
-- Frame count and description of visual content
-- BG VRAM write analysis: does tdragonb2 use BG VRAM during attract mode?
-- Any unexpected findings
+- Frame content: what's visible at frames 17, 50, 100, 200, 300?
+- VID STATUS summary: any non-zero code/scrx/scry?
+- BG VRAM writes: zero (expected) or any seen?
+- Overall: does the video output look correct for tdragonb2 attract mode?
 
 Read `.shared/findings.md` before starting.
 Update `.shared/status.md` when you begin.
-Append any new findings to `.shared/findings.md`.

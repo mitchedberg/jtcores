@@ -39,6 +39,16 @@ Multiple agents work in this repo. Check `.shared/` at session start:
 - `.shared/findings.md` — read before debugging, append when you discover something
 - `.shared/status.md` — write your current status so others know what you're working on
 
+## Rule 6: Inbox Tasks Contain All Required Research
+
+**Agents in this repo cannot access the web, GitHub, or MAME source.** All hardware specs,
+address maps, bit-field definitions, and MAME-verified facts are pre-loaded into the inbox file
+by the orchestrator. If an inbox says "go look up X in MAME" or "search GitHub for Y", that is
+an orchestrator error — skip that step and use only what is written in the inbox and findings.md.
+
+The orchestrator's job is to pre-load research into inbox files before dispatching tasks. Agents
+implement; they do not research.
+
 ## Pending Tasks (pick one up if you have no inbox)
 - `.shared/inbox_nmk16.md` — NMK16: 100-frame sim diagnostics + BG VRAM write analysis
 - `.shared/inbox_toapv2.md` — Toaplan V2: research GP9001 sprite format for implementation

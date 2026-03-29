@@ -4,6 +4,48 @@ Append new findings at the top. Read before debugging any issue.
 
 ---
 
+## 2026-03-29: GP9001 VDP — full VRAM layout + sprite format (MAME-verified)
+
+**Source:** `src/mame/toaplan/gp9001.cpp`
+
+**VRAM layout (word addresses, auto-increment via register interface):**
+- BG0 tilemap: 0x0000–0x07FF (0x1000 bytes)
+- BG1 tilemap: 0x0800–0x0FFF (0x1000 bytes)
+- TOP tilemap: 0x1000–0x17FF (0x1000 bytes)
+- Sprite RAM: **0x1800–0x1BFF** (0x800 bytes = 256 sprites × 4 words each)
+
+CPU writes sprites: set voffs=0x1800, then burst-write. Sprite word addr condition: `gp_voffs[15:11] == 5'b00011`.
+
+**Sprite attribute format (4 words/sprite):**
+- Word0: [15]=show, [13]=flipY, [12]=flipX, [11:8]=priority(4-bit), [7:2]=color(6-bit), [1:0]=tile[17:16]
+- Word1: [15:0]=tile[15:0] → 18-bit combined tile index
+- Word2: [15:7]=X(9-bit), [3:0]=Xsize=(val+1)×8px
+- Word3: [15:7]=Y(9-bit), [3:0]=Ysize=(val+1)×8px
+
+**GFX ROM format — NOT standard planar:**
+2-ROM-half interleaved 4bpp. Per 8-pixel row: 16 bits total across two ROM halves.
+- Low half: planes 0 and 1 interleaved (bit 0 and bit 8 of each byte)
+- High half: planes 2 and 3 interleaved (bit 0 and bit 8 of each byte)
+This is incompatible with jtframe_scroll's standard planar input. Need custom pixel extractor
+or ROM repack step.
+
+**Current jttoapv2_video.v:** Only bg_vram (0x000–0x3FF) implemented. Sprite RAM BRAM and
+renderer FSM not yet written.
+
+---
+
+## 2026-03-29: Psikyo Gunbird `jtpsikyo_video.v` created — lint clean
+
+`jtpsikyo_video.v` written and instantiated in `jtpsikyo_game.v`. `files.yaml` updated.
+- 2 BG VRAM BRAMs (AW=12, DW=16)
+- 2 jtframe_scroll instances (SIZE=16, VA=11, CW=13, PW=8, MAP_HW=10, MAP_VW=9, HJUMP=1)
+- Chunky2planar conversion (same as NMK16)
+- Palette RAM (AW=12, DW=16), xRGB_555 output (COLORW=5)
+- Palette pen: `0x800 + (color + layer*0x40)*16 + pixel_nibble`
+- Lint: clean (zero errors in new file)
+
+---
+
 ## 2026-03-29: NMK16 tdragonb2 sprite format + address map verified vs MAME
 
 **Sprite attribute layout CONFIRMED CORRECT** vs `src/mame/nmk/nmk16spr.cpp`:
