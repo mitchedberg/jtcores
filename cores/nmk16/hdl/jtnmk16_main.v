@@ -90,14 +90,17 @@ assign bus_cs    = main_cs | ram_cs;
 assign bus_busy  = (main_cs & ~main_ok) | (ram_cs & ~ram_ok);
 
 // Address decode — combinational
+// All comparisons use byte address bits [23:N] (A[23:1] = byte addr with bit 0 omitted,
+// so A[k] == byte addr bit k for k>=1).
+// Verification: correct constant = target_byte_addr >> N
 always @* begin
-    main_cs    = !ASn  && A[23:18] == 6'h00;   // 0x000000-0x03FFFF
-    ram_cs     = !BUSn && A[23:16] == 8'h0B;   // 0x0B0000-0x0BFFFF
-    io_cs      = !BUSn && A[23:5]  == 19'h0601_80;  // 0x0C0000-0x0C001F
-    scroll_cs  = !BUSn && A[23:3]  == 20'h0C204;    // 0x0C4000-0x0C4007
-    pal_cs     = !BUSn && A[23:11] == 13'b0110_0100_0000;  // 0x0C8000-0x0C87FF
-    bgvram_cs  = !BUSn && A[23:16] == 8'h0CC;  // 0x0CC000-0x0CFFFF
-    fgvram_cs  = !BUSn && A[23:11] == 13'b0110_1000_0000;  // 0x0D0000-0x0D07FF
+    main_cs    = !ASn  && A[23:18] == 6'h00;    // 0x000000-0x03FFFF (0>>18=0x00)
+    ram_cs     = !BUSn && A[23:16] == 8'h0B;    // 0x0B0000-0x0BFFFF (0x0B0000>>16=0x0B)
+    io_cs      = !BUSn && A[23:5]  == 19'h06000; // 0x0C0000-0x0C001F (0x0C0000>>5=0x6000)
+    scroll_cs  = !BUSn && A[23:3]  == 21'h018800; // 0x0C4000-0x0C4007 (0x0C4000>>3=0x18800)
+    pal_cs     = !BUSn && A[23:11] == 13'h0190;  // 0x0C8000-0x0C87FF (0x0C8000>>11=0x190)
+    bgvram_cs  = !BUSn && A[23:14] == 10'h033;   // 0x0CC000-0x0CFFFF (0x0CC000>>14=0x33)
+    fgvram_cs  = !BUSn && A[23:11] == 13'h01A0;  // 0x0D0000-0x0D07FF (0x0D0000>>11=0x1A0)
     clr_int    = io_cs && !RnW;   // any IO write clears interrupt
 end
 
