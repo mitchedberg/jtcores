@@ -1,52 +1,55 @@
-# NMK16 Task: Sprite Format & Scroll Register Verification
+# NMK16 Task: Sim Diagnostics + Video Quality Check
 
 **From:** Claude orchestrator
-**Date:** 2026-03-29
-**Priority:** High
+**Date:** 2026-03-29 (updated)
 
-## Context
+## Status: Sprite format VERIFIED — new task below
 
-NMK16 (Thunder Dragon / tdragonb2) simulation now produces visible video output at frame 17+.
-Sprites and background pixels are visible. We need to verify two things:
+Previous task (sprite format verification) is DONE. See findings.md.
+Result: our sprite attribute layout EXACTLY matches MAME nmk16spr.cpp. No changes needed.
+Also confirmed: sprite transparency = pen 15. Correct.
 
-## Task 1: Verify Sprite Attribute Layout
+## New Task: NMK16 300-Frame Sim with Enhanced Video Diagnostics
 
-Our current sprite renderer (`cores/nmk16/hdl/jtnmk16_sprite.v`) reads sprite attributes from
-sprite RAM at 0x0B8000. The current attribute layout:
+The 600-frame sim produced visible video at frame 17+. Now we need to verify video quality.
 
-- Word 0 (offset 0): enabled bit = `spr_ram_qi[0]`
-- Word 1 (offset 1): attr1 — `[3:0]`=width_tiles-1, `[7:4]`=height_tiles-1, `[8]`=flipX, `[9]`=flipY
-- Word 3 (offset 3): tile_code (12-bit base code)
-- Word 4 (offset 4): xpos
-- Word 6 (offset 6): ypos
-- Word 7 (offset 7): palette (4-bit in `[3:0]`)
+### Step 1: Run a 100-frame sim with enhanced diagnostics
 
-**Your job:**
-1. Fetch the MAME source for NMK16/Thunder Dragon: search GitHub at `https://github.com/mamedev/mame/blob/master/src/mame/nmk/nmk16.cpp` for the sprite rendering function. Look for `nmk16_state::draw_sprites` or similar.
-2. Extract the exact attribute word layout (offsets, bit fields) from MAME's draw_sprites function.
-3. Compare against our implementation in `jtnmk16_sprite.v` (read the file first).
-4. Report any discrepancies. DO NOT modify any code — just report findings.
+From `cores/nmk16/ver/tdragon/`:
+```bash
+JTROOT=/Volumes/2TB_20260220/Projects/jtcores JTFRAME=$JTROOT/modules/jtframe MODULES=$JTROOT/modules CORES=$JTROOT/cores JTBIN=$JTROOT/release PATH=$PATH:$JTFRAME/bin jtsim -frame 100 2>&1 | tee /tmp/nmk16_100f_v2.log
+```
 
-## Task 2: Verify Scroll Register Decode for tdragonb2
+### Step 2: Analyze the output
 
-The scroll registers in `jtnmk16_video.v` are decoded as:
-- `cpu_addr[2:1]==0` → scrollX (0xC4000)
-- `cpu_addr[2:1]==2` → scrollY (0xC4004)
+From the log, extract:
+1. All `VID STATUS` lines — are any showing non-zero `code`, `scrx`, or `scry`?
+2. Are there any `bg=1` or `pal=1` entries in the `NMK16: A=...` periodic prints?
+3. How many frames were saved? (check `frames/` directory)
 
-But tdragonb2 is a bootleg. Check MAME source:
-1. Search `nmk16.cpp` for `tdragonb2` device definition and its address map.
-2. Check if the bootleg uses the same scroll register addresses as the original tdragon.
-3. Also check palette RAM format: does tdragonb2 use the same RGB format as the original?
-   Our current decode: `red={pal_q[15:12],pal_q[3]}`, `green={pal_q[11:8],pal_q[2]}`, `blue={pal_q[7:4],pal_q[1]}`
-4. Report findings. DO NOT modify any code.
+### Step 3: View frame content
 
-## What to return
+Read frames 17, 18, 20, 50, 100 from `cores/nmk16/ver/tdragon/frames/` and describe what you see:
+- Colors present?
+- Any recognizable patterns (text, sprites, solid areas)?
+- Changes between frames?
 
-Return a concise markdown report with:
-- Sprite attribute layout: MAME vs ours (table format, note any discrepancies)
-- Scroll register map: bootleg vs original (any differences?)
-- Palette RGB decode: correct or wrong?
-- Recommended fixes if any discrepancies found
+### Step 4: Check BG VRAM write issue
 
-Read `.shared/findings.md` before starting to avoid duplicating known issues.
-After completing, append your findings to `.shared/findings.md`.
+The CPU appears to never write to BG VRAM (0x0CC000-0x0CFFFF) in 600 frames.
+Verify this by searching the sim log for any CPU access with `A` in range 0x0CC000-0x0CFFFF.
+Also check: does MAME's tdragonb2 ever write to 0x0CC000 during the attract mode?
+  Hint: look at MAME's debugger memory map for tdragonb2 (`tdragonb2_map`) — is BG VRAM
+  used during attract mode or only during gameplay?
+
+### What to return
+
+Concise report:
+- VID STATUS summary (non-zero values seen?)
+- Frame count and description of visual content
+- BG VRAM write analysis: does tdragonb2 use BG VRAM during attract mode?
+- Any unexpected findings
+
+Read `.shared/findings.md` before starting.
+Update `.shared/status.md` when you begin.
+Append any new findings to `.shared/findings.md`.
