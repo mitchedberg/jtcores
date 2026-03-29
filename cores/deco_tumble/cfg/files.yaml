@@ -13,7 +13,6 @@ jtframe:
   - from: cpu
     get:
       - jtframe_m68k.yaml
-      - jtframe_h6280.yaml
   - from: ram
     get:
       - jtframe_dual_ram.v

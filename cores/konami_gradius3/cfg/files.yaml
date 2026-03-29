@@ -29,4 +29,3 @@ jtframe:
       - jtframe_cen48.v
 jt12:
   - get:
-    - jt51.yaml

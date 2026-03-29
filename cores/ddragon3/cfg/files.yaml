@@ -19,8 +19,4 @@ jtframe:
       - jtframe_dual_ram.v
       - jtframe_dual_ram16.v
 jt51:
-  - get:
-    - jt51.yaml
 jt6295:
-  - get:
-    - jt6295.yaml

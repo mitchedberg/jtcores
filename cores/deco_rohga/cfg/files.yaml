@@ -13,7 +13,6 @@ jtframe:
   - from: cpu
     get:
       - jtframe_m68k.yaml
-      - jtframe_h6280.yaml
   - from: ram
     get:
       - jtframe_dual_ram.v
@@ -29,12 +28,9 @@ jt51:
     - jt51_pm.v
     - jt51_acc.v
     - jt51_lfo.v
-    - jt51.yaml
     - jt51_op.v
     - jt51_comb.v
     - jt51_pg.v
     - jt51_eg.v
 jt6295:
-  - get:
-    - jt6295.yaml
     - jt6295_rom.v

@@ -20,5 +20,3 @@ jtframe:
     get:
       - jtframe_frac_cen.v
 jt6295:
-  - get:
-    - jt6295.yaml

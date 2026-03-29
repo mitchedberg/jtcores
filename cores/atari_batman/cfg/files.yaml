@@ -24,8 +24,6 @@ jtframe:
       - jtframe_frac_cen.v
 jt51:
   - get:
-    - jt51.yaml
-  - get:
     - jt51_exp_rom.v
     - jt51_reg.v
     - jt51_sustain.v
@@ -41,8 +39,6 @@ jt51:
     - jt51_csr.v
     - jt51_logsin.v
 jt6295:
-  - get:
-    - jt6295.yaml
   - get:
     - jt6295_adpcm.v
     - jt6295_gated_clock.v

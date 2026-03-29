@@ -21,5 +21,3 @@ jt03:
   - get:
     - jt03.yaml
 jt6295:
-  - get:
-    - jt6295.yaml
