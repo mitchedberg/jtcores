@@ -58,7 +58,7 @@ SIMULATOR_EXTRA=
 if [ `uname` = Darwin ]; then
     MACOS=YES
     # BSD version for sed command
-    if ! sed --version > /dev/null; then
+    if ! sed --version > /dev/null 2>&1; then
         SED="sed -i bak"
     fi
 fi
@@ -357,8 +357,8 @@ if [ $GATES = NO ]; then
     if grep --quiet fx68k game.f; then
         # These files are read by the FX68K module but they must be in the
         # simulation folder. Forgetting to have them there results in X everywhere
-        ln -sfr $MODULES/fx68k/hdl/microrom.mem
-        ln -sfr $MODULES/fx68k/hdl/nanorom.mem
+        ln -sf $MODULES/fx68k/hdl/microrom.mem .
+        ln -sf $MODULES/fx68k/hdl/nanorom.mem .
     fi
     # Remove duplicated lines
     rm -f tmp.f
@@ -378,7 +378,12 @@ if [ $GATES = NO ]; then
             fi;;
     esac
     cat game.f jtsim.f >> tmp.f
-    cat tmp.f | envsubst | grep -v "^#" | xargs realpath --relative-to=. | awk '!seen[$0]++' > game_env.f
+    if realpath --version 2>/dev/null | grep -q GNU; then
+        cat tmp.f | envsubst | grep -v "^#" | xargs realpath --relative-to=. | awk '!seen[$0]++' > game_env.f
+    else
+        # macOS BSD realpath doesn't support --relative-to; use absolute paths instead
+        cat tmp.f | envsubst | grep -v "^#" | awk '!seen[$0]++' > game_env.f
+    fi
     # Sort and delete duplicates
     emulate_F game_env.f | awk '!seen[$0]++' > filtered.f
     rm -f game_env.f tmp.f
@@ -388,12 +393,12 @@ fi
 
 # Link to hex filters in module files as needed
 if grep -q jtframe_jt49_filters filtered.f; then
-    ln -srf $JTFRAME/hdl/sound/firjt49.hex
+    ln -sf "$JTFRAME/hdl/sound/firjt49.hex" .
 fi
 
 for mod in jt6295 jt539; do
     if grep -q $mod filtered.f; then
-        for i in $MODULES/$mod/hdl/*.hex; do ln -srf $i; done
+        for i in $MODULES/$mod/hdl/*.hex; do ln -sf "$i" .; done
     fi
 done
 

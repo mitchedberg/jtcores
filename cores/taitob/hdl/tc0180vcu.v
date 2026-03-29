@@ -101,17 +101,17 @@ always @(posedge clk) begin
 end
 
 // CPU read — control regs return upper byte, lower byte = 0
-// Framebuffer at cpu_addr[17]=1 returns actual pixel pair
+// Framebuffer at cpu_addr[18]=1 returns actual pixel pair
 wire ctrl_rd_sel = cpu_cs & !cpu_we &
                    (cpu_addr[18:16] == 3'b001) &
                    (cpu_addr[15:14] == 2'b10);
-wire fb_rd_sel   = cpu_cs & !cpu_we & cpu_addr[17];
+wire fb_rd_sel   = cpu_cs & !cpu_we & cpu_addr[18];
 
 // FB read address wires (fb_mem declared below with storage)
 // Address: {page(1), Y[7:0](8 bits = cpu_addr[16:9]), X_pair[7:0](8 bits = cpu_addr[8:1])}
-// CPU always accesses the current WRITE page (fb_page).
-wire [17:0] fb_rd_addr_hi = {fb_page, cpu_addr[16:9], cpu_addr[8:1], 1'b0};
-wire [17:0] fb_rd_addr_lo = {fb_page, cpu_addr[16:9], cpu_addr[8:1], 1'b1};
+// cpu_addr[17] is the page select bit within the FB (VCU word addr bit 17 = 2^17 = page boundary).
+wire [17:0] fb_rd_addr_hi = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1], 1'b0};
+wire [17:0] fb_rd_addr_lo = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1], 1'b1};
 
 always @(posedge clk) begin
     if (ctrl_rd_sel)
@@ -1001,19 +1001,19 @@ end
 reg [7:0] fb_mem [0:262143];
 
 // CPU write path — writes pairs of pixels as a 16-bit word
-wire fb_wr_sel = cpu_cs & cpu_we & cpu_addr[17];
-// Address: {fb_page(1), Y[7:0](cpu_addr[16:9]), X_pair[7:0](cpu_addr[8:1]), pixel_bit}
-wire [17:0] fb_wr_addr_hi = {fb_page, cpu_addr[16:9], cpu_addr[8:1], 1'b0};
-wire [17:0] fb_wr_addr_lo = {fb_page, cpu_addr[16:9], cpu_addr[8:1], 1'b1};
+wire fb_wr_sel = cpu_cs & cpu_we & cpu_addr[18];
+// Address: {cpu_addr[17](page), Y[7:0](cpu_addr[16:9]), X_pair[7:0](cpu_addr[8:1]), pixel_bit}
+wire [17:0] fb_wr_addr_hi = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1], 1'b0};
+wire [17:0] fb_wr_addr_lo = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1], 1'b1};
 
 always @(posedge clk) begin
     if (fb_wr_sel) begin
         if (!cpu_dsn[1]) fb_mem[fb_wr_addr_hi] <= cpu_din[15:8]; // upper byte = left pixel
         if (!cpu_dsn[0]) fb_mem[fb_wr_addr_lo] <= cpu_din[7:0];  // lower byte = right pixel
         `ifdef SIMULATION
-        if (cpu_dsn != 2'b11 && cpu_din != 16'h0000)
-            $display("FB_WR: addr=%05X hi=%02X lo=%02X dsn=%b cyc=%0t",
-                     cpu_addr, cpu_din[15:8], cpu_din[7:0], cpu_dsn, $time);
+        if (fb_wr_sel && cpu_din != 16'h0000 && diag_cycle > 60_000_000)
+            $display("FB_WRITE: addr=%05X data=%04X page=%b dsn=%b cyc=%0d",
+                     cpu_addr, cpu_din, fb_page, cpu_dsn, diag_cycle);
         `endif
     end
 end
@@ -1042,7 +1042,7 @@ always @(posedge clk) begin
 end
 
 // Scanout — combinational read of the display page (opposite of write page)
-wire [7:0] fb_pix = fb_mem[{~fb_page, vdump[7:0], hdump[8:0]}];
+wire [7:0] fb_pix = fb_mem[{fb_page, vdump[7:0], hdump[8:0]}];
 
 // =====================================================================
 // Simulation diagnostics

@@ -434,15 +434,19 @@ EOF
         exit 1
     fi
     if [[ ! -e rom.bin || `readlink rom.bin` != "$ROMFILE" ]]; then
-        ln -srf $ROMFILE rom.bin
+        ln -sf "$ROMFILE" rom.bin
         enable_load
     fi
     if [ -e $ROM/$SETNAME.mod ]; then cp $ROM/$SETNAME.mod core.mod; fi
 }
 
 derive_corename_from_folder() {
-    local corename=$(realpath `pwd` --relative-to=$CORES | cut -d/ -f1)
-    if [[ $corename == ..* ]]; then
+    local abs_pwd=$(cd `pwd` && pwd)
+    local abs_cores=$(cd $CORES && pwd)
+    # macOS realpath doesn't support --relative-to, so we use shell parameter expansion
+    local rel_path="${abs_pwd#$abs_cores/}"
+    local corename=$(echo "$rel_path" | cut -d/ -f1)
+    if [[ $corename == ..* ]] || [[ $abs_pwd != $abs_cores* ]]; then
         echo "You must run jtsim from inside a folder in $CORES" >&2
         exit 1
     fi
@@ -490,12 +494,12 @@ make_rombin_link() {
         echo "ERROR: cannot make rom.bin from $romfile"
         exit 1
     fi
-    ln -sr $romfile rom.bin
+    ln -sf "$romfile" rom.bin
 }
 
 get_file_length() {
     local filename="$1"
-    if ! stat --version > /dev/null; then
+    if ! stat --version > /dev/null 2>&1; then
         stat -L -f %z $filename
     else
         stat -L -c%s $filename

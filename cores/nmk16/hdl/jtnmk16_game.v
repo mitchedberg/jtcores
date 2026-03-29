@@ -28,6 +28,7 @@ wire [15:0] cpu_dout;
 wire        cpu_rnw;
 wire        pal_cs, bgvram_cs, fgvram_cs, scroll_cs, io_cs_unused;
 wire [15:0] mp_dout, mbg_dout, mfg_dout, mscroll_dout;
+wire        tilebank;
 
 // Pixel clock: ~6 MHz from 48 MHz (48/8=6)
 jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
@@ -111,7 +112,10 @@ jtnmk16_main u_main(
 
     // Sound
     .snd_latch      (                   ),
-    .snd_stb        (                   )
+    .snd_stb        (                   ),
+
+    // Tilebank
+    .tilebank       ( tilebank          )
 );
 `else
 assign main_cs    = 0;
@@ -148,6 +152,7 @@ jtnmk16_video u_video(
     .fgvram_cs      ( fgvram_cs         ),
     .pal_cs         ( pal_cs            ),
     .scroll_cs      ( scroll_cs         ),
+    .tilebank       ( tilebank          ),
     // CPU read-back
     .bgvram_dout    ( mbg_dout          ),
     .fgvram_dout    ( mfg_dout          ),

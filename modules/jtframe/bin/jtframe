@@ -16,7 +16,12 @@ else
     # than the JTFRAME's commit
     cd $JTFRAME > /dev/null
     COMMIT_DATE=$(git show -s --format=%ct)
-    COMPILED_DATE=$(stat -c %Y $BIN)
+    # macOS uses 'stat -f %m', GNU/Linux uses 'stat -c %Y'
+    if [ "$(uname)" = "Darwin" ]; then
+        COMPILED_DATE=$(stat -f %m "$BIN")
+    else
+        COMPILED_DATE=$(stat -c %Y "$BIN")
+    fi
     if (( $COMPILED_DATE < $COMMIT_DATE )) ; then
         RECOMPILE=TRUE
     fi

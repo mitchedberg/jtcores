@@ -2,6 +2,19 @@ module jttoapv2_game(
     `include "jtframe_game_ports.inc"
 );
 
+wire        gp_cs;
+wire        pal_cs;
+wire        txt_cs;
+wire        cpu_rnw;
+wire        ym_cs;
+wire        ym_we;
+wire        io_cs;
+wire [ 7:0] ym_data;
+wire [18:0] gp_addr;
+wire [15:0] gp_dout;
+wire [15:0] pal_dout;
+wire [15:0] txt_dout;
+
 // Pixel clock: 6.75 MHz from 48 MHz (27/4 MHz; use 48*9/64 ≈ 6.75)
 jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
     .clk    ( clk              ),
@@ -57,14 +70,14 @@ jttoapv2_main u_main(
     .ram_ok     ( ram_ok        ),
     
     // GP9001 VDP
-    .gp_cs      ( gfx_cs        ),
-    .gp_addr    ( gfx_addr      ),
-    .gp_data    ( gfx_data      ),
-    .gp_ok      ( gfx_ok        ),
+    .gp_cs      ( gp_cs         ),
+    .gp_addr    ( gp_addr       ),
+    .gp_data    ( {16'h0,gp_dout} ),
+    .gp_ok      ( 1'b1          ),
     
     // Palette RAM (BRAM)
-    .pal_cs     (               ),
-    .pal_dout   ( 16'h0         ),
+    .pal_cs     ( pal_cs        ),
+    .pal_dout   ( pal_dout      ),
     
     // Extra text ROM
     .txtrom_cs  (               ),
@@ -73,8 +86,8 @@ jttoapv2_main u_main(
     .txtrom_ok  ( 1'b1          ),
     
     // Extra text RAM
-    .txt_cs     (               ),
-    .txt_dout   ( 16'h0         ),
+    .txt_cs     ( txt_cs        ),
+    .txt_dout   ( txt_dout      ),
     
     // YM2151 sound
     .ym_cs      ( ym_cs         ),
@@ -89,9 +102,9 @@ jttoapv2_main u_main(
     .oki_ok     ( oki_ok        ),
     
     // Control
-    .joystick1  ( joystick1     ),
-    .joystick2  ( joystick2     ),
-    .dipsw      ( dipsw         ),
+    .joystick1  ( joystick1[5:0] ),
+    .joystick2  ( joystick2[5:0] ),
+    .dipsw      ( dipsw[15:0]   ),
     .dip_pause  ( dip_pause     )
 );
 `endif
@@ -125,10 +138,32 @@ jttoapv2_snd u_snd(
 );
 `endif
 
-// Video outputs stubbed to 0
-assign red          = 4'h0;
-assign green        = 4'h0;
-assign blue         = 4'h0;
+jttoapv2_video u_video(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .pxl_cen    ( pxl_cen       ),
+    .LHBL       ( LHBL          ),
+    .LVBL       ( LVBL          ),
+    .cpu_dout   ( ram_din       ),
+    .gp_cs      ( gp_cs         ),
+    .gp_addr    ( gp_addr[2:1]  ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .gp_dout    ( gp_dout       ),
+    .pal_cs     ( pal_cs        ),
+    .pal_addr   ( ram_addr[11:1] ),
+    .pal_dout   ( pal_dout      ),
+    .txt_cs     ( txt_cs        ),
+    .txt_addr   ( ram_addr[12:1] ),
+    .txt_dout   ( txt_dout      ),
+    .gfx_addr   ( gfx_addr      ),
+    .gfx_cs     ( gfx_cs        ),
+    .gfx_data   ( gfx_data      ),
+    .gfx_ok     ( gfx_ok        ),
+    .red        ( red           ),
+    .green      ( green         ),
+    .blue       ( blue          )
+);
+
 assign dip_flip     = 1'b0;
 assign debug_view   = 8'h0;
 

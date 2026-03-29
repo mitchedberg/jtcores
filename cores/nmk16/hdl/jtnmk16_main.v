@@ -62,7 +62,10 @@ module jtnmk16_main(
 
     // Sound
     output reg    [ 7:0] snd_latch,
-    output reg           snd_stb
+    output reg           snd_stb,
+
+    // Tilebank
+    output reg           tilebank
 );
 
 `ifndef NOMAIN
@@ -86,7 +89,9 @@ assign ram_we    = ram_cs & ~RnW;
 assign BUSn      = ASn | (LDSn & UDSn);
 assign IPLn      = intn ? 3'b111 : 3'b110;   // IRQ1 (vblank)
 assign VPAn      = ~(!ASn && FC == 3'b111);
-assign bus_cs    = main_cs | ram_cs | pal_cs | bgvram_cs | fgvram_cs | scroll_cs | io_cs | sprite_fix;
+wire mapped_cs  = main_cs | ram_cs | pal_cs | bgvram_cs | fgvram_cs | scroll_cs | io_cs | sprite_fix;
+wire unmapped_cs = !BUSn & ~mapped_cs;  // catch-all: any bus cycle not matching a known region
+assign bus_cs    = mapped_cs | unmapped_cs;   // always generate DTACK for any bus cycle
 assign bus_busy  = (main_cs & ~main_ok) | (ram_cs & ~ram_ok);
 
 // Address decode — combinational
@@ -102,18 +107,23 @@ always @* begin
     pal_cs     = !BUSn && A[23:11] == 13'h0190;  // 0x0C8000-0x0C87FF (0x0C8000>>11=0x190)
     bgvram_cs  = !BUSn && A[23:14] == 10'h033;   // 0x0CC000-0x0CFFFF (0x0CC000>>14=0x33)
     fgvram_cs  = !BUSn && A[23:11] == 13'h01A0;  // 0x0D0000-0x0D07FF (0x0D0000>>11=0x1A0)
-    clr_int    = io_cs && !RnW;   // any IO write clears interrupt
+    clr_int    = !ASn && FC == 3'b111;   // IACK cycle clears interrupt
 end
 
-// Sound latch capture (at io_cs)
+// Tilebank and sound latch capture (at io_cs)
 always @(posedge clk) begin
     if (rst) begin
         snd_latch <= 8'h0;
         snd_stb   <= 0;
+        tilebank  <= 0;
     end else begin
         snd_stb <= io_cs & ~RnW;
-        if (io_cs & ~RnW)
-            snd_latch <= cpu_dout[7:0];
+        if (io_cs & ~RnW) begin
+            if (A[4])
+                tilebank <= cpu_dout[0];  // 0x0C0018: tilebank select
+            else
+                snd_latch <= cpu_dout[7:0];  // 0x0C0000-0x0C000F: sound/other writes
+        end
     end
 end
 
@@ -126,9 +136,11 @@ always @(posedge clk) begin
               fgvram_cs ? mfg_dout  :
               scroll_cs ? mscroll_dout :
               sprite_fix ? 16'h0003 :
-              io_cs    ? (A[3:1]==3'd0 ? {8'hFF, joystick1}             :
-                          A[3:1]==3'd1 ? {8'hFF, joystick2}             :
-                          A[3:1]==3'd2 ? {dipsw[14:8], LVBL, dipsw[7:0]} :
+              io_cs    ? (A[4:1]==4'd0 ? {8'hFF, 2'b11, joystick1[5:0]} :  // 0xC0000: IN0 (P1)
+                          A[4:1]==4'd1 ? 16'hFFFF                       :  // 0xC0002: IN1/system
+                          A[4:1]==4'd4 ? {8'hFF, dipsw[7:0]}            :  // 0xC0008: DSW1
+                          A[4:1]==4'd5 ? {8'hFF, dipsw[15:8]}           :  // 0xC000A: DSW2
+                          A[4:1]==4'd7 ? {8'hFF, 8'h00}                 :  // 0xC000E: NMK004 sound status (idle)
                                          16'hFFFF) :
                          16'hFFFF;
 end
@@ -194,9 +206,33 @@ jtframe_m68k u_cpu(
 
 `ifdef SIMULATION
 reg [31:0] diag_cnt;
-always @(posedge clk) if(cpu_cen) begin
-    diag_cnt <= diag_cnt + 1;
-    if(diag_cnt[19:0]==0) $display("NMK16: A=%06X RnW=%b cs:m=%b r=%b bg=%b pal=%b", {A,1'b0}, RnW, main_cs, ram_cs, bgvram_cs, pal_cs);
+reg [15:0] last_page;
+reg        past_rst;
+always @(posedge clk) begin
+    past_rst <= rst;
+    if(cpu_cen) begin
+        diag_cnt <= diag_cnt + 1;
+        // Trace exception vector reads (byte addr 0x00-0xFF)
+        if(!rst && RnW && !ASn && {A,1'b0} < 24'h000100)
+            $display("NMK16 VECTOR: A=%06X (vector %0d)", {A,1'b0}, {A[6:1],1'b0}>>2);
+        // Trace CPU entering new 512-byte page
+        if(!rst && !ASn && A[23:9] != last_page[14:0]) begin
+            last_page <= {1'b0, A[23:9]};
+            $display("NMK16 PAGE: A=%06X RnW=%b", {A,1'b0}, RnW);
+        end
+        // Periodic status (more frequent)
+        if(diag_cnt[15:0]==0)
+            $display("NMK16: A=%06X RnW=%b cs:m=%b r=%b bg=%b pal=%b io=%b", {A,1'b0}, RnW, main_cs, ram_cs, bgvram_cs, pal_cs, io_cs);
+        // Catch instruction fetch at RTE return address (0x9324)
+        if(!rst && !ASn && RnW && {A,1'b0} == 24'h009324)
+            $display("NMK16 RTE_FETCH: A=%06X data=%04X main_cs=%b main_ok=%b", {A,1'b0}, main_data, main_cs, main_ok);
+        // Catch any illegal instruction exception vector read
+        if(!rst && !ASn && RnW && {A,1'b0} == 24'h000010)
+            $display("NMK16 ILLEGAL_VEC: reading illegal instruction vector! SP probably at %06X", {A,1'b0});
+        // Catch when CPU reaches error halt
+        if(!rst && !ASn && RnW && {A,1'b0} == 24'h0096CC)
+            $display("NMK16 ERROR_HALT: CPU at error halt 0x96CC");
+    end
 end
 `endif`else
 initial begin
@@ -204,6 +240,7 @@ initial begin
     pal_cs = 0; bgvram_cs = 0; fgvram_cs = 0; scroll_cs = 0; io_cs = 0; sprite_fix = 0;
     snd_latch = 0;
     snd_stb = 0;
+    tilebank = 0;
 end
 assign main_addr = 0; assign ram_addr = 0;
 assign ram_din = 0; assign ram_dsn = 0; assign ram_we = 0;

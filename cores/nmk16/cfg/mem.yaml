@@ -1,13 +1,6 @@
-params:
-  - { name: RAM_OFFSET, value: "22'h10_0000" }
 sdram:
   banks:
     - buses:
-      - name: ram
-        addr_width: 16
-        data_width: 16
-        rw: true
-        offset: RAM_OFFSET
       - name: main
         addr_width: 18
         data_width: 16
@@ -19,3 +12,8 @@ sdram:
       - name: gfx
         addr_width: 22
         data_width: 32
+    - buses:
+      - name: ram
+        addr_width: 16
+        data_width: 16
+        rw: true

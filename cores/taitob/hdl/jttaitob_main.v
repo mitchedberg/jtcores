@@ -268,6 +268,15 @@ always @(posedge clk) begin
                      main_rom_cnt, main_ram_cnt, main_vcu_cnt, main_ioc_cnt, main_pal_cnt, main_syt_cnt, main_wr_cnt);
     end
 end
+
+reg [7:0] pal_diag_cnt;
+initial pal_diag_cnt = 0;
+always @(posedge clk) begin
+    if (pal_area && ~rnw && cpu_cen && main_diag_cycle > 54_000_000 && pal_diag_cnt < 200) begin
+        $display("PAL_DATA: addr=%03X data=%04X cyc=%0d", A[12:1], cpu_dout, main_diag_cycle);
+        pal_diag_cnt <= pal_diag_cnt + 1;
+    end
+end
 `endif
 
 jtframe_m68k u_cpu(

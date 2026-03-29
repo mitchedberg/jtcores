@@ -92,9 +92,9 @@ assign ram_din    = cpu_dout;
 assign cpu_rnw    = RnW;
 assign ram_dsn    = {UDSn, LDSn};
 assign ram_we     = ram_cs & ~RnW;
-assign gp_addr    = A[18:0];
-assign txtrom_addr= A[18:0];
-assign oki_addr   = A[18:0];
+assign gp_addr    = { A[18:1], 1'b0 };
+assign txtrom_addr= { A[18:1], 1'b0 };
+assign oki_addr   = { A[18:1], 1'b0 };
 assign BUSn       = ASn | (LDSn & UDSn);
 assign IPLn       = intn ? 3'b111 : 3'b101;   // level 3 on vblank
 assign VPAn       = ~(!ASn && FC == 3'b111);
@@ -125,8 +125,8 @@ always @(posedge clk) begin
                txt_cs    ? txt_dout :
                txtrom_cs ? txtrom_data :
                ym_cs     ? 16'hFFFF :
-               io_cs     ? (A[3:1]==3'd0 ? {8'hFF, joystick1}             :
-                            A[3:1]==3'd1 ? {8'hFF, joystick2}             :
+               io_cs     ? (A[3:1]==3'd0 ? {10'h3FF, joystick1}           :
+                            A[3:1]==3'd1 ? {10'h3FF, joystick2}           :
                             A[3:1]==3'd2 ? {dipsw[14:8], LVBL, dipsw[7:0]} :
                                            16'hFFFF) :
                oki_cs    ? {8'hFF, oki_data} :

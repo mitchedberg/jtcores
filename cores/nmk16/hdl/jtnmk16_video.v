@@ -47,6 +47,7 @@ module jtnmk16_video(
     input         fgvram_cs,   // unused this step
     input         pal_cs,
     input         scroll_cs,
+    input         tilebank,
     // CPU read-back
     output [15:0] bgvram_dout,
     output [15:0] fgvram_dout,
@@ -85,7 +86,7 @@ jtframe_dual_ram #(.DW(16),.AW(13)) u_bgvram(
     .q0     ( bgvram_dout   ),
     .clk1   ( clk           ),
     .data1  ( 16'd0         ),
-    .addr1  ( {2'b0, bg_vram_addr} ),
+    .addr1  ( {1'b0, tilebank, bg_vram_addr} ),
     .we1    ( 1'b0          ),
     .q1     ( bg_vram_q     )
 );
@@ -111,32 +112,51 @@ jtframe_dual_ram #(.DW(16),.AW(10)) u_palram(
 );
 
 // -------------------------------------------------------
-// Scroll registers — 4 x 16-bit (cpu_addr[2:1] = 00..11)
-// scrollX = {scroll[0][3:0], scroll[1][7:0]}  (12 bits)
-// scrollY = {scroll[2][0],   scroll[3][7:0]}  (9 bits)
+// Scroll registers — tdragonb2 direct 16-bit values
+// 0xC4000 (cpu_addr[2:1]==0): scrollX — direct 16-bit word
+// 0xC4002 (cpu_addr[2:1]==1): ignored (nop write)
+// 0xC4004 (cpu_addr[2:1]==2): scrollY — direct 16-bit word
+// 0xC4006 (cpu_addr[2:1]==3): ignored (nop write)
 // scrx truncated to MAP_HW=10 bits for jtframe_scroll
 // -------------------------------------------------------
-reg [15:0] scroll_r[0:3];
+reg [15:0] scroll_x, scroll_y;
 always @(posedge clk) begin
     if (rst) begin
-        scroll_r[0] <= 0; scroll_r[1] <= 0;
-        scroll_r[2] <= 0; scroll_r[3] <= 0;
+        scroll_x <= 0;
+        scroll_y <= 0;
     end else if (scroll_cs & ~cpu_rnw) begin
-        scroll_r[cpu_addr[2:1]] <= cpu_dout;
+        case (cpu_addr[2:1])
+            2'd0: scroll_x <= cpu_dout;  // 0xC4000: scrollX
+            2'd2: scroll_y <= cpu_dout;  // 0xC4004: scrollY
+            default: ;                   // 0xC4002, 0xC4006: ignored
+        endcase
     end
 end
-assign scroll_dout = scroll_r[cpu_addr[2:1]];
+assign scroll_dout = (cpu_addr[2:1] == 2'd2) ? scroll_y : scroll_x;
 
-// Full 12-bit scroll X: {scroll_r[0][3:0], scroll_r[1][7:0]}
-// MAP_HW=10, so pass lower 10 bits to jtframe_scroll
-wire [11:0] scrx_full = { scroll_r[0][3:0], scroll_r[1][7:0] };
-wire  [9:0] scrx = scrx_full[9:0];
-wire  [8:0] scry = { scroll_r[2][0],   scroll_r[3][7:0] };
+// MAP_HW=10: pass lower 10 bits of scrollX; scrY is 9 bits
+wire  [9:0] scrx = scroll_x[9:0];
+wire  [8:0] scry = scroll_y[8:0];
 
 // -------------------------------------------------------
 // FG VRAM stub (not rendered in step 1)
 // -------------------------------------------------------
 assign fgvram_dout = 16'hFFFF;
+
+// -------------------------------------------------------
+// Convert NMK16 chunky GFX format to jtframe planar format
+// Chunky: gfx_data[4*px+plane] for px=0..7, plane=0..3
+// Planar: rom[8*plane+(7-px)] where MSB=leftmost pixel
+wire [31:0] gfx_planar;
+generate
+    genvar gi;
+    for (gi = 0; gi < 8; gi = gi + 1) begin : chunky2planar
+        assign gfx_planar[7-gi]    = gfx_data[gi*4+0]; // plane 0
+        assign gfx_planar[15-gi]   = gfx_data[gi*4+1]; // plane 1
+        assign gfx_planar[23-gi]   = gfx_data[gi*4+2]; // plane 2
+        assign gfx_planar[31-gi]   = gfx_data[gi*4+3]; // plane 3
+    end
+endgenerate
 
 // -------------------------------------------------------
 // jtframe_scroll — SIZE=16, MAP_HW=10, MAP_VW=9
@@ -174,7 +194,7 @@ jtframe_scroll #(
     .hflip      ( 1'b0          ),
     .vflip      ( 1'b0          ),
     .rom_addr   ( bg_rom_addr   ),
-    .rom_data   ( gfx_data      ),
+    .rom_data   ( gfx_planar    ),
     .rom_cs     ( bg_rom_cs     ),
     .rom_ok     ( gfx_ok        ),
     .pxl        ( bg_pxl        )
@@ -194,5 +214,22 @@ assign pal_rd_addr = { 2'b0, bg_pxl[7:4], bg_pxl[3:0] };
 assign red   = { pal_q[15:12], pal_q[3]   };
 assign green = { pal_q[11:8],  pal_q[2]   };
 assign blue  = { pal_q[7:4],   pal_q[1]   };
+
+`ifdef SIMULATION
+reg [31:0] vid_cnt;
+reg        gfx_seen;
+always @(posedge clk) if(pxl_cen) begin
+    vid_cnt <= vid_cnt + 1;
+    // Report first GFX ROM access ever
+    if(bg_rom_cs && !gfx_seen) begin
+        $display("VID GFX_FIRST: addr=%05X at vid_cnt=%0d", bg_rom_addr, vid_cnt);
+        gfx_seen <= 1;
+    end
+    // Periodically check rom_cs and rom_ok status
+    if(vid_cnt[18:0]==0)
+        $display("VID STATUS: rom_cs=%b rom_ok=%b code=%03X pal=%01X pxl=%02X tilebank=%b scrx=%03X scry=%03X blankn=%b vram_addr=%03X",
+                 bg_rom_cs, gfx_ok, bg_vram_q[11:0], bg_vram_q[15:12], bg_pxl, tilebank, scrx, scry, LHBL&LVBL, bg_vram_addr);
+end
+`endif
 
 endmodule

@@ -48,7 +48,7 @@ always @(*) begin
         3'd2: dout = ~joystick1;  // active LOW (JTFRAME provides active HIGH)
         3'd3: dout = ~joystick2;
         3'd4: dout = { 4'hf, coin_ctrl[3:2], ~coin_input };
-        3'd7: dout = { 4'hf, tilt, service, start_button };
+        3'd7: dout = { start_button[1], start_button[0], 2'b11, coin_input[1], coin_input[0], service, tilt };
         default: dout = 8'hff;
     endcase
 end
