@@ -4,6 +4,45 @@ Append new findings at the top. Read before debugging any issue.
 
 ---
 
+## 2026-03-29: NMK16 tdragonb2 sprite format + address map verified vs MAME
+
+**Sprite attribute layout CONFIRMED CORRECT** vs `src/mame/nmk/nmk16spr.cpp`:
+- Word 0 [0]: enabled
+- Word 1 [3:0]/[7:4]/[8]/[9]: width_tiles-1 / height_tiles-1 / flipX / flipY
+- Word 3: tile_code (full 16-bit; our impl uses [11:0] but MAME passes full 16-bit — tile codes >4095 are possible for large games)
+- Word 4 [8:0]: xpos (9-bit, mask 0x1FF)
+- Word 6 [8:0]: ypos (9-bit, mask 0x1FF)
+- Word 7 [3:0]: palette (4-bit)
+
+**tdragonb2 address map vs tdragonb differences (MAME source):**
+- Sprite RAM: 0x0B8000-0x0B8FFF (mainram base 0x0B0000 + 0x8000 offset) ✓ correct
+- Video regs (palette=0xC8000, BGVRAM=0xCC000, TXVRAM=0xD0000, scroll=0xC4000) — IDENTICAL to tdragonb ✓
+- tdragonb2 does NOT have the 0x044022 protection read (tdragonb does). Our `sprite_fix` at 0x044022 is harmless but unnecessary for tdragonb2.
+- tdragonb2 scroll: 0xC4000=scrollX, 0xC4002=nop, 0xC4004=scrollY, 0xC4006=nop ✓ correct
+- tdragonb2 has OKI M6295 only (no NMK004 sound chip) ✓ matches our stub
+
+**NMK16 video output at frame 600:** Sprites animating on red background = CORRECT attract mode behavior. BG tiles (BGVRAM) intentionally empty during attract mode; red = palette[0] (background color the CPU writes). Not a bug.
+
+---
+
+## 2026-03-29: Battle Garegga (Raizing) hardware spec — MAME verified
+
+Source: `src/mame/toaplan/raizing.cpp` (no raizing/ subdir; lives under toaplan/).
+
+- CPU: 68000 @ 16MHz (32MHz XTAL / 2)
+- ROM: 0x000000–0x0FFFFF (1MB)
+- Work RAM: 0x100000–0x10FFFF (64KB)
+- Video: GP9001 VDP @ 27MHz
+  - GP9001 regs: 0x300000–0x30000D
+  - Palette RAM: 0x400000–0x400FFF (4KB, xBGR_555 format)
+  - Text VRAM: 0x500000–0x501FFF; linescroll: 0x502000–0x5031FF
+- I/O: 0x21C020–0x21C035 (inputs/DIPs)
+- Sound latch: 0x600001 (main→Z80); shared RAM: 0x218000–0x21BFFF
+- VBLANK: M68K IPL level 4
+- Sound CPU: Z80 @ 4MHz + YM2151 @ 4MHz + OKI M6295
+
+---
+
 ## 2026-03-29: NMK16 BA2 `fg` bus with `addr_width: 17` generates `fg_addr[16:2]` and `SLOT2_AW(16)`
 
 For JTFRAME `mem.yaml`, `addr_width` is still the byte-address width. After adding NMK16 FG as
