@@ -1,0 +1,28 @@
+konami_gradius3:
+  - get:
+    - jtkonami_gradius3_game.v
+    - jtkonami_gradius3_main.v
+    - jtkonami_gradius3_snd.v
+    - jtkonami_gradius3_video.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+      - jtframe_z80.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v
+      - jtframe_dual_ram16.v
+      - jtframe_obj_buffer.v
+  - from: clocking
+    get:
+      - jtframe_cen48.v
+jt12:
+  - get:
+    - jt51.yaml

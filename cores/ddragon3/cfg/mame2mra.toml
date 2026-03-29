@@ -1,0 +1,26 @@
+[global]
+author=["jotego"]
+
+[parse]
+sourcefile=[ "d_ddragon3.cpp" ]
+skip = { machines=[], bootlegs=false }
+
+[audio]
+volume = [
+    { machine="ddragon3", value=0x70 },
+]
+
+[buttons]
+names = [
+    { machine="ddragon3", names="Punch, Kick" },
+]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true },
+    { name="audiocpu", start="JTFRAME_BA1_START" },
+    { name="msm6295", start="JTFRAME_BA2_START" },
+    { name="gfx1", start="JTFRAME_BA3_START", width=32 },
+]
+
+order = [ "maincpu", "audiocpu", "msm6295", "gfx1" ]

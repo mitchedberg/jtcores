@@ -1,0 +1,25 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "d_gijoe.cpp" ]
+
+[buttons]
+names=[
+    { names="Button 1,Button 2,Button 3" }
+]
+
+[dipsw]
+delete=[{names=["Unused","Unknown"]}]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true, no_offset=true },
+    { name="audiocpu", start="JTFRAME_BA1_START" },
+    { name="gfx1", start="JTFRAME_BA2_START", width=32, no_offset=true },
+    { name="gfx2", start="JTFRAME_BA3_START", width=32, no_offset=true }
+]
+
+order = [
+    "maincpu", "audiocpu", "gfx1", "gfx2"
+]

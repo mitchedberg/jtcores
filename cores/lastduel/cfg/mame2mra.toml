@@ -1,0 +1,13 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "lastduel.cpp" ]
+
+[buttons]
+names=[
+    { names="Shot,Bomb" }
+]
+
+[dipsw]
+delete=[{names=["Unused","Unknown"]}]

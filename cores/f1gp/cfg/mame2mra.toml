@@ -1,0 +1,18 @@
+[global]
+author=["jotego"]
+
+[parse]
+sourcefile=[ "f1gp.cpp" ]
+
+[ROM]
+regions = [
+    { name="maincpu", No_offset=true },
+    { name="audiocpu", No_offset=true, start="JTFRAME_BA1_START" },
+    { name="oki", No_offset=true, start="JTFRAME_BA2_START" },
+    { name="gfx1", width=16, start="JTFRAME_BA3_START" },
+    { name="proms", skip=true },
+]
+
+order = [
+    "maincpu", "audiocpu", "oki", "gfx1"
+]

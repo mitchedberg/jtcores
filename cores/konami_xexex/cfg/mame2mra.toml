@@ -1,0 +1,27 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "xexex.cpp" ]
+
+[buttons]
+names=[
+    { names="Fire 1,Fire 2" }
+]
+
+[dipsw]
+delete=[{names=["Unused","Unknown"]}]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true, no_offset=true },
+    { name="audiocpu", start="JTFRAME_BA1_START" },
+    { name="gfx0", start="JTFRAME_BA2_START", width=32, no_offset=true },
+    { name="gfx1", start="JTFRAME_BA3_START", width=32, no_offset=true },
+    { name="gfx2", start="JTFRAME_BA4_START", width=8 },
+    { name="ym054539:rom", start="JTFRAME_BA4_START" }
+]
+
+order = [
+    "maincpu", "audiocpu", "gfx0", "gfx1", "gfx2", "ym054539:rom"
+]

@@ -1,0 +1,58 @@
+[main]
+bitstream = "jtpushman"
+rbf_region = 1
+
+[rom]
+prom_layout = "linear"
+
+[[rom.files]]
+name = "pushman.zip"
+sha1 = "a80b195e5e4b8f1a0ecabd6b2ec1d4db"
+
+[[rom.files.parts]]
+crc = 0x42e1d194
+romname = "pm-c.2c"
+offset = 0
+length = 0x10000
+
+[[rom.files.parts]]
+crc = 0x8e26b4f0
+romname = "pm-z.8b"
+offset = 0x10000
+length = 0x2000
+
+[[rom.files.parts]]
+crc = 0x6c33d857
+romname = "pm-m.1a"
+offset = 0x12000
+length = 0x1000
+
+[[rom.files.parts]]
+crc = 0x3cff0dea
+romname = "pm-g0.3d"
+offset = 0x13000
+length = 0x8000
+
+[[rom.files.parts]]
+crc = 0x9b34a2f4
+romname = "pm-g1.3a"
+offset = 0x1b000
+length = 0x8000
+
+[[rom.files.parts]]
+crc = 0x529b7e44
+romname = "pm-g2.2d"
+offset = 0x23000
+length = 0x8000
+
+[[rom.files.parts]]
+crc = 0x36c6b5b0
+romname = "pm-g3.2a"
+offset = 0x2b000
+length = 0x8000
+
+[[rom.files.parts]]
+crc = 0x89b499b0
+romname = "pm-p.4f"
+offset = 0x33000
+length = 0x1000

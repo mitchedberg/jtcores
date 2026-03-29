@@ -1,0 +1,54 @@
+toaplan_kb:
+  - get:
+    - jttoaplan_kb_game.v
+    - jttoaplan_kb_main.v
+    - jttoaplan_kb_snd.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_z80.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v
+      - jtframe_dual_ram16.v
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v
+jt51:
+  - get:
+    - jt51.yaml
+    - jt51_acc.v
+    - jt51_div.v
+    - jt51_eg.v
+    - jt51_eg_cnt.v
+    - jt51_eg_comb.v
+    - jt51_eg_pure.v
+    - jt51_eg_step.v
+    - jt51_exprom.v
+    - jt51_lfo.v
+    - jt51_lfo_pm.v
+    - jt51_mmr.v
+    - jt51_mod.v
+    - jt51_op.v
+    - jt51_pack.v
+    - jt51_pg.v
+    - jt51_pg_inc.v
+    - jt51_pg_sum.v
+    - jt51_pmdout.v
+    - jt51_sh.v
+    - jt51_sum.v
+jt6295:
+  - get:
+    - jt6295.yaml
+    - jt6295_acc.v
+    - jt6295_adpcm.v
+    - jt6295_adr.v
+    - jt6295_cnt.v
+    - jt6295_ctrl.v
+    - jt6295_deltamod.v

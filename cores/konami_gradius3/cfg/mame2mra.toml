@@ -1,0 +1,26 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "gx400.cpp" ]
+
+[buttons]
+names=[
+    { names="Shot,Bomb,Power" }
+]
+
+[dipsw]
+delete=[{names=["Unused","Unknown"]}]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true, no_offset=true },
+    { name="subcpu", width=16, reverse=true, offset="0x80000" },
+    { name="audiocpu", start="JTFRAME_BA1_START" },
+    { name="k052109", start="JTFRAME_BA2_START", width=16, no_offset=true },
+    { name="k051316", start="JTFRAME_BA3_START", width=32, no_offset=true }
+]
+
+order = [
+    "maincpu", "subcpu", "audiocpu", "k052109", "k051316"
+]

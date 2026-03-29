@@ -1,0 +1,34 @@
+params:
+  - { name: RAM_OFFSET, value: "20'h10_0000" }
+sdram:
+  banks:
+    - buses:
+      - name: main
+        addr_width: 20
+        data_width: 16
+      - name: ram
+        addr_width: 15
+        data_width: 16
+        rw: true
+        offset: RAM_OFFSET
+    - buses:
+      - name: snd
+        addr_width: 14
+        data_width: 8
+    - buses:
+      - name: gfx
+        addr_width: 20
+        data_width: 16
+bram:
+  - name: pal
+    addr_width: 12
+    data_width: 16
+    dual_port: { name: main, we: pal_we, rw: true, din: ram_din, dout: mp_dout }
+  - name: tile
+    addr_width: 13
+    data_width: 16
+    dual_port: { name: main, we: tile_we, rw: true, din: ram_din, dout: mt_dout }
+  - name: spr
+    addr_width: 12
+    data_width: 16
+    dual_port: { name: main, we: spr_we, rw: true, din: ram_din, dout: ms_dout }

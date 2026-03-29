@@ -1,0 +1,49 @@
+atari_batman:
+  - get:
+    - jtatari_batman_game.v
+    - jtatari_batman_main.v
+    - jtatari_batman_snd.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+      - jtframe_z80.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v
+      - jtframe_dual_ram16.v
+      - jtframe_obj_buffer.v
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v
+jt51:
+  - get:
+    - jt51.yaml
+  - get:
+    - jt51_exp_rom.v
+    - jt51_reg.v
+    - jt51_sustain.v
+    - jt51_timers.v
+    - jt51_op.v
+    - jt51_pg.v
+    - jt51_lfo.v
+    - jt51_sh.v
+    - jt51_acc.v
+    - jt51_sh24.v
+    - jt51_mmr.v
+    - jt51_con.v
+    - jt51_csr.v
+    - jt51_logsin.v
+jt6295:
+  - get:
+    - jt6295.yaml
+  - get:
+    - jt6295_adpcm.v
+    - jt6295_gated_clock.v
+    - jt6295_timing.v

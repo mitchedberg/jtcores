@@ -1,0 +1,46 @@
+params:
+  - { name: RAM_OFFSET, value: "20'h12_0000" }
+sdram:
+  banks:
+    - buses:
+      - name: main
+        addr_width: 20
+        data_width: 16
+      - name: ram
+        addr_width: 14
+        data_width: 16
+        rw: true
+        offset: RAM_OFFSET
+    - buses:
+      - name: snd
+        addr_width: 17
+        data_width: 8
+    - buses:
+      - name: gfx
+        addr_width: 21
+        data_width: 32
+bram:
+  - name: pal
+    addr_width: 11
+    data_width: 16
+    dual_port: { name: main, we: pal_we, rw: true, din: ram_din, dout: mp_dout }
+  - name: spr
+    addr_width: 11
+    data_width: 16
+    dual_port: { name: main, we: spr_we, rw: true, din: ram_din, dout: ms_dout }
+  - name: vram0
+    addr_width: 13
+    data_width: 16
+    dual_port: { name: main, we: vram0_we, rw: true, din: ram_din, dout: m0_dout }
+  - name: vram1
+    addr_width: 13
+    data_width: 16
+    dual_port: { name: main, we: vram1_we, rw: true, din: ram_din, dout: m1_dout }
+  - name: vscr0
+    addr_width: 11
+    data_width: 16
+    dual_port: { name: main, we: vscr0_we, rw: true, din: ram_din, dout: ms0_dout }
+  - name: vscr1
+    addr_width: 11
+    data_width: 16
+    dual_port: { name: main, we: vscr1_we, rw: true, din: ram_din, dout: ms1_dout }

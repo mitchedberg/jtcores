@@ -1,0 +1,27 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "bbusters.cpp" ]
+
+[buttons]
+names=[
+    { names="Fire1,Fire2" }
+]
+
+[dipsw]
+delete=[{names=["Unused","Unknown"]}]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true, no_offset=true },
+    { name="audiocpu", start="JTFRAME_BA1_START" },
+    { name="ymsnd:ym2610", addr="A", start="YM2610A_START" },
+    { name="ymsnd:ym2610", addr="B", start="YM2610B_START" },
+    { name="gfx2", start="JTFRAME_BA2_START", width=16, no_offset=true },
+    { name="gfx1", start="JTFRAME_BA3_START", width=16, no_offset=true }
+]
+
+order = [
+    "maincpu", "audiocpu", "ymsnd:ym2610", "gfx2", "gfx1"
+]

@@ -1,0 +1,31 @@
+[default]
+setname = "chasehq"
+corename = "JTTAITOZ"
+description = "Taito Z System"
+
+[rom]
+files = [ "chasehq*" ]
+
+[main]
+bytes = 0x80000
+offset = 0x0
+
+[bank1]
+bytes = 0x80000
+offset = 0x80000
+
+[bank2]
+bytes = 0x80000
+offset = 0x100000
+
+[snd]
+bytes = 0x20000
+offset = 0x200000
+
+[tile]
+bytes = 0x40000
+offset = 0x220000
+
+[obj]
+bytes = 0x80000
+offset = 0x260000

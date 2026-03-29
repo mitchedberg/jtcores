@@ -1,0 +1,23 @@
+deco_darkseal:
+  - get:
+    - jtdeco_darkseal_game.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v
+      - jtframe_dual_ram16.v
+jt03:
+  - get:
+    - jt03.yaml
+jt6295:
+  - get:
+    - jt6295.yaml

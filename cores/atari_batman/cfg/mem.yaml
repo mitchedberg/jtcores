@@ -1,0 +1,40 @@
+params:
+  - { name: RAM_OFFSET, value: "22'h20_0000" }
+sdram:
+  banks:
+    - buses:
+      - name: main
+        addr_width: 20
+        data_width: 16
+    - buses:
+      - name: snd
+        addr_width: 16
+        data_width: 8
+      - name: adpcm
+        addr_width: 21
+        data_width: 8
+        offset: "(`JTFRAME_BA2_START-`JTFRAME_BA1_START)>>1"
+    - buses:
+      - name: gfx0
+        addr_width: 21
+        data_width: 32
+      - name: gfx1
+        addr_width: 21
+        data_width: 32
+    - buses:
+      - name: gfx2
+        addr_width: 22
+        data_width: 32
+bram:
+  - name: main
+    addr_width: 18
+    data_width: 16
+    dual_port: { name: main, we: main_ram_we, rw: true, din: main_ram_din, dout: main_ram_dout }
+  - name: pal
+    addr_width: 12
+    data_width: 16
+    dual_port: { name: main, we: pal_we, rw: true, din: ram_din, dout: pal_dout }
+  - name: spr
+    addr_width: 12
+    data_width: 16
+    dual_port: { name: main, we: spr_we, rw: true, din: ram_din, dout: spr_dout }

@@ -1,0 +1,8 @@
+[othunder]
+name = "Operation Thunderbolt"
+machines = ["othunder", "othunderj", "othunderu"]
+
+[[othunder.files]]
+name = "othunder.zip"
+description = "MAME ROM set"
+type = "arcade"

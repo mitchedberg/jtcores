@@ -1,0 +1,26 @@
+seibu_cabal:
+  - get:
+    - jtseibu_cabal_game.v
+    - jtseibu_cabal_main.v
+    - jtseibu_cabal_snd.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+      - jtframe_z80.yaml
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v
+jtopl:
+  - get:
+    - jtopl_top.v
+    - jtopl.yaml
+jt6295:
+  - get:
+    - jt6295.v

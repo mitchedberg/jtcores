@@ -1,0 +1,26 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "darkseal.cpp" ]
+
+[buttons]
+names=[
+    { names="Fire,Jump" }
+]
+
+[dipsw]
+delete=[{names=["Unused","Unknown"]}]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true, no_offset=true },
+    { name="audiocpu", start="JTFRAME_BA1_START" },
+    { name="gfx1", start="JTFRAME_BA2_START", width=16, no_offset=true },
+    { name="gfx2", start="0x380000", width=16, no_offset=true },
+    { name="gfx3", start="0x480000", width=32, no_offset=true }
+]
+
+order = [
+    "maincpu", "audiocpu", "gfx1", "gfx2", "gfx3"
+]

@@ -1,0 +1,20 @@
+[mame]
+# Sunset Riders (US) / Mystic Warriors (Japan)
+games = ["ssriders", "mystwarr"]
+
+[jtkonami_ssriders_game]
+rom = "jtkonami_ssriders_game"
+part = 0
+width = 16
+swap = true
+
+[jtkonami_ssriders_main]
+rom = "jtkonami_ssriders_main"
+part = 0
+width = 16
+swap = true
+
+[jtkonami_ssriders_snd]
+rom = "jtkonami_ssriders_snd"
+part = 0
+width = 8

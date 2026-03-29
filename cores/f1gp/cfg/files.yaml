@@ -1,0 +1,23 @@
+f1gp:
+  - get:
+    - jtf1gp_game.v
+    - jtf1gp_main.v
+    - jtf1gp_snd.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+      - jtframe_z80.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v
+      - jtframe_dual_ram16.v
+jt12:
+  - get:
+    - jt10.yaml

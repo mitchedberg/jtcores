@@ -1,0 +1,28 @@
+params:
+  - { name: ROM_OFFSET, value: "22'h0" }
+sdram:
+  banks:
+    - buses:
+      - name: main
+        addr_width: 19
+        data_width: 16
+    - buses:
+      - name: snd
+        addr_width: 14
+        data_width: 8
+      - name: gfx
+        addr_width: 21
+        data_width: 32
+    - buses:
+      - name: obj
+        addr_width: 22
+        data_width: 32
+bram:
+  - name: pal
+    addr_width: 12
+    data_width: 16
+    dual_port: { name: main, we: pal_we, rw: true, din: ram_din, dout: mp_dout }
+  - name: vram
+    addr_width: 13
+    data_width: 16
+    dual_port: { name: main, we: vram_we, rw: true, din: ram_din, dout: mv_dout }

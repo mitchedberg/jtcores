@@ -1,0 +1,23 @@
+konami_xexex:
+  - get:
+    - jtkonami_xexex_game.v
+    - jtkonami_xexex_main.v
+    - jtkonami_xexex_snd.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+      - jtframe_z80.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v
+      - jtframe_dual_ram16.v
+jt054539:
+  - get:
+    - jt054539.yaml

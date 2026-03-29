@@ -1,0 +1,13 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "batman.cpp" ]
+
+[buttons]
+names=[
+    { names="Jump,Shoot" }
+]
+
+[dipsw]
+delete=[{names=["Unused","Unknown"]}]

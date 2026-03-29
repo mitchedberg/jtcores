@@ -1,0 +1,40 @@
+deco_rohga:
+  - get:
+    - jtdeco_rohga_game.v
+    - jtdeco_rohga_main.v
+    - jtdeco_rohga_snd.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+      - jtframe_h6280.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v
+      - jtframe_dual_ram16.v
+      - jtframe_obj_buffer.v
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v
+jt51:
+  - get:
+    - jt51_rst.v
+    - jt51_dout.v
+    - jt51_pm.v
+    - jt51_acc.v
+    - jt51_lfo.v
+    - jt51.yaml
+    - jt51_op.v
+    - jt51_comb.v
+    - jt51_pg.v
+    - jt51_eg.v
+jt6295:
+  - get:
+    - jt6295.yaml
+    - jt6295_rom.v
