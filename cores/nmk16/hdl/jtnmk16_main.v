@@ -86,7 +86,7 @@ assign ram_we    = ram_cs & ~RnW;
 assign BUSn      = ASn | (LDSn & UDSn);
 assign IPLn      = intn ? 3'b111 : 3'b110;   // IRQ1 (vblank)
 assign VPAn      = ~(!ASn && FC == 3'b111);
-assign bus_cs    = main_cs | ram_cs;
+assign bus_cs    = main_cs | ram_cs | pal_cs | bgvram_cs | fgvram_cs | scroll_cs | io_cs;
 assign bus_busy  = (main_cs & ~main_ok) | (ram_cs & ~ram_ok);
 
 // Address decode — combinational
