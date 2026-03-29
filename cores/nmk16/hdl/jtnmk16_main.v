@@ -128,9 +128,11 @@ always @(posedge clk) begin
 end
 
 // Data input mux
+// Sound mailbox stub: return 0 on reads to RAM[0x0B9008] (word addr A[15:1]==0x4804)
+// This prevents the 68000 from stalling waiting for NMK004 to acknowledge the sound command.
 always @(posedge clk) begin
     cpu_din <= main_cs  ? main_data  :
-              ram_cs   ? ram_data   :
+              ram_cs   ? (A[15:1]==15'h4804 ? 16'h0000 : ram_data) :
               pal_cs   ? mp_dout    :
               bgvram_cs ? mbg_dout  :
               fgvram_cs ? mfg_dout  :
