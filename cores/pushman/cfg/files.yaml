@@ -21,6 +21,6 @@ jtframe:
   - from: clocking
     get:
       - jtframe_frac_cen.v
-jt03:
+jt12:
   - get:
     - jt03.yaml

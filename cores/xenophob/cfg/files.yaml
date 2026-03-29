@@ -1,4 +1,4 @@
-jtxenophob:
+xenophob:
   - get:
     - jtxenophob_game.v
     - jtxenophob_main.v

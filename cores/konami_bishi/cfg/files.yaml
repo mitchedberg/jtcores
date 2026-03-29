@@ -1,12 +1,9 @@
-jtbishi:
+konami_bishi:
   - get:
-    - jtbishi_game.v
-    - jtbishi_main.v
-    - jtbishi_snd.v
-  - from: hdl
-    get:
-      - jtbishi_main.v
-      - jtbishi_snd.v
+    - jtkonami_bishi_game.v
+    - jtkonami_bishi_main.v
+    - jtkonami_bishi_snd.v
+  - get:
 jtframe:
   - get:
     - jtframe_edge.v

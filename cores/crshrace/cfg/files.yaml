@@ -1,4 +1,4 @@
-jtcrshrace:
+crshrace:
   - get:
     - jtcrshrace_game.v
     - jtcrshrace_main.v

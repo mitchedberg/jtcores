@@ -3,10 +3,7 @@ hyprduel:
     - jthyprduel_game.v
     - jthyprduel_main.v
     - jthyprduel_snd.v
-  - from: hdl
-    get:
-      - jthyprduel_main.v
-      - jthyprduel_snd.v
+  - get:
 jtframe:
   - get:
     - jtframe_edge.v

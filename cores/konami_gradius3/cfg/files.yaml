@@ -3,11 +3,6 @@ konami_gradius3:
     - jtkonami_gradius3_game.v
     - jtkonami_gradius3_main.v
     - jtkonami_gradius3_snd.v
-    - jtkonami_gradius3_video.v
-  - from: hdl
-    get:
-      - jtkonami_gradius3_main.v
-      - jtkonami_gradius3_snd.v
 jtframe:
   - get:
     - jtframe_edge.v
@@ -23,9 +18,7 @@ jtframe:
     get:
       - jtframe_dual_ram.v
       - jtframe_dual_ram16.v
-      - jtframe_obj_buffer.v
   - from: clocking
     get:
-      - jtframe_cen48.v
-jt12:
-  - get:
+      - jtframe_frac_cen.v
+jt51:

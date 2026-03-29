@@ -1,6 +1,6 @@
 konami_gijoe:
   - get:
-    - jtkonami_gijoe_game.v
+    - jtgijoe_game.v
     - jtkonami_gijoe_main.v
     - jtkonami_gijoe_snd.v
 jtframe:

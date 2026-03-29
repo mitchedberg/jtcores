@@ -3,8 +3,6 @@ blockout:
     - jtblockout_game.v
     - jtblockout_main.v
     - jtblockout_snd.v
-    - jtblockout_main.v
-    - jtblockout_snd.v
 jtframe:
   - get:
     - jtframe_edge.v
@@ -24,21 +22,4 @@ jtframe:
     get:
       - jtframe_frac_cen.v
 jt51:
-    - jt51_acc.v
-    - jt51_con.v
-    - jt51_div.v
-    - jt51_eg.v
-    - jt51_exp.v
-    - jt51_exprom.v
-    - jt51_opl.v
-    - jt51_pg.v
-    - jt51_pm.v
-    - jt51_prom.v
-    - jt51_reg.v
-    - jt51_sh.v
-    - jt51_slag.v
 jt6295:
-    - jt6295_acc.v
-    - jt6295_adpcm.v
-    - jt6295_div.v
-    - jt6295_exp.v

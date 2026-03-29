@@ -18,7 +18,7 @@
 
 // Konami Bishi Bashi YMZ280B sound module
 
-module jtbishi_snd(
+module jtkonami_bishi_snd(
     input             rst,
     input             clk,
     // Sound latch from main CPU

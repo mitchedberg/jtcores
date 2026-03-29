@@ -18,7 +18,7 @@
 
 // Konami Bishi Bashi 68000 main CPU module
 
-module jtbishi_main(
+module jtkonami_bishi_main(
     input                rst,
     input                clk,
     input                LVBL,

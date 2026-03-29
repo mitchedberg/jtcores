@@ -3,10 +3,7 @@ konami_xexex:
     - jtkonami_xexex_game.v
     - jtkonami_xexex_main.v
     - jtkonami_xexex_snd.v
-  - from: hdl
-    get:
-      - jtkonami_xexex_main.v
-      - jtkonami_xexex_snd.v
+  - get:
 jtframe:
   - get:
     - jtframe_edge.v
@@ -22,6 +19,4 @@ jtframe:
     get:
       - jtframe_dual_ram.v
       - jtframe_dual_ram16.v
-jt054539:
   - get:
-    - jt054539.yaml

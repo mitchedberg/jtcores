@@ -19,6 +19,6 @@ jtframe:
       - jtframe_dual_ram.v
       - jtframe_dual_ram16.v
 jt51:
-jt03:
+jt12:
   - get:
     - jt03.yaml

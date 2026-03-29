@@ -1,0 +1,11 @@
+[global]
+author=["AI-built"]
+
+[parse]
+sourcefile=[ "taito_b.cpp" ]
+skip.setnames=[]
+
+[buttons]
+names=[
+    { names="Rotate L,Rotate R" }
+]

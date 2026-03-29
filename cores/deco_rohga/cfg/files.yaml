@@ -22,15 +22,4 @@ jtframe:
     get:
       - jtframe_frac_cen.v
 jt51:
-  - get:
-    - jt51_rst.v
-    - jt51_dout.v
-    - jt51_pm.v
-    - jt51_acc.v
-    - jt51_lfo.v
-    - jt51_op.v
-    - jt51_comb.v
-    - jt51_pg.v
-    - jt51_eg.v
 jt6295:
-    - jt6295_rom.v
