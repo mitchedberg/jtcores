@@ -434,11 +434,14 @@ always @(posedge clk) begin
             bg_pal   <= bg_pal_nxt;
             bg_hf    <= bg_hf_nxt;
             // Request ROM data for the next 8 pixels
-            if (LHBL & LVBL) begin
+            // Tile code 0 = transparent sentinel (empty/blank tile); skip ROM fetch
+            if (LHBL & LVBL && bg_tile_code != 15'd0) begin
                 bg_rom_pending <= 1;
                 bg_rom_addr_lat <= {bg_tile_code, bg_px[3] ^ bg_tile_flipx, bg_eff_suby};
                 bg_color_lat    <= bg_tile_color;
                 bg_flipx_lat    <= bg_tile_flipx;
+            end else begin
+                bg_shift_nxt <= 32'd0; // tile 0 = transparent; clear next shift reg
             end
         end else begin
             // Shift out pixel
@@ -505,11 +508,14 @@ always @(posedge clk) begin
             fg_shift <= fg_shift_nxt;
             fg_pal   <= fg_pal_nxt;
             fg_hf    <= fg_hf_nxt;
-            if (LHBL & LVBL) begin
+            // Tile code 0 = transparent sentinel (empty/blank tile); skip ROM fetch
+            if (LHBL & LVBL && fg_tile_code != 15'd0) begin
                 fg_rom_pending <= 1;
                 fg_rom_addr_lat <= {fg_tile_code, fg_px[3] ^ fg_tile_flipx, fg_eff_suby};
                 fg_color_lat    <= fg_tile_color;
                 fg_flipx_lat    <= fg_tile_flipx;
+            end else begin
+                fg_shift_nxt <= 32'd0; // tile 0 = transparent; clear next shift reg
             end
         end else begin
             fg_shift <= fg_hf ? (fg_shift >> 1) : (fg_shift << 1);
