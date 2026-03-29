@@ -174,8 +174,8 @@ jt51 u_ym2151(
     .wr_n     ( wr_n         ),
     .dout     ( ym_dout      ),
     .irq_n    ( ym_irq_n     ),
-    .snd_left ( snd_left     ),
-    .snd_right( snd_right    ),
+    .xleft ( snd_left     ),
+    .xright( snd_right    ),
     .sample   ( sample       )
 );
 
