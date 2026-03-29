@@ -26,7 +26,7 @@ wire [8:0] hdump, vdump;
 wire [13:1] cpu_addr;
 wire [15:0] cpu_dout;
 wire        cpu_rnw;
-wire        pal_cs, bgvram_cs, fgvram_cs, scroll_cs, io_cs_unused;
+wire        pal_cs, bgvram_cs, fgvram_cs, scroll_cs, sprite_cs, io_cs_unused;
 wire [15:0] mp_dout, mbg_dout, mfg_dout, mscroll_dout;
 wire        tilebank;
 
@@ -96,6 +96,7 @@ jtnmk16_main u_main(
     .bgvram_cs      ( bgvram_cs         ),
     .fgvram_cs      ( fgvram_cs         ),
     .scroll_cs      ( scroll_cs         ),
+    .sprite_cs      ( sprite_cs         ),
     .io_cs          ( io_cs_unused      ),
 
     // Video BRAM read-back
@@ -152,6 +153,7 @@ jtnmk16_video u_video(
     .fgvram_cs      ( fgvram_cs         ),
     .pal_cs         ( pal_cs            ),
     .scroll_cs      ( scroll_cs         ),
+    .sprite_cs      ( sprite_cs         ),
     .tilebank       ( tilebank          ),
     // CPU read-back
     .bgvram_dout    ( mbg_dout          ),
@@ -163,6 +165,10 @@ jtnmk16_video u_video(
     .gfx_cs         ( gfx_cs            ),
     .gfx_data       ( gfx_data          ),
     .gfx_ok         ( gfx_ok            ),
+    .spr_addr       ( spr_addr          ),
+    .spr_cs         ( spr_cs            ),
+    .spr_data       ( spr_data          ),
+    .spr_ok         ( spr_ok            ),
     // Pixel output
     .red            ( red               ),
     .green          ( green             ),
