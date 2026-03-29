@@ -169,6 +169,10 @@ jtnmk16_video u_video(
     .spr_cs         ( spr_cs            ),
     .spr_data       ( spr_data          ),
     .spr_ok         ( spr_ok            ),
+    .fg_addr        ( fg_addr           ),
+    .fg_cs          ( fg_cs             ),
+    .fg_data        ( fg_data           ),
+    .fg_ok          ( fg_ok             ),
     // Pixel output
     .red            ( red               ),
     .green          ( green             ),

@@ -1,5 +1,6 @@
 params:
   - { name: SPR_OFFSET, value: "22'h10_0000 >> 2" }
+  - { name: FG_OFFSET, value: "22'h20_0000 >> 2" }
 
 sdram:
   banks:
@@ -19,6 +20,10 @@ sdram:
         addr_width: 22
         data_width: 32
         offset: SPR_OFFSET
+      - name: fg
+        addr_width: 17
+        data_width: 32
+        offset: FG_OFFSET
     - buses:
       - name: ram
         addr_width: 16

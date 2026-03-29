@@ -44,7 +44,7 @@ module jtnmk16_video(
     input         cpu_rnw,
     // VRAM chip selects
     input         bgvram_cs,
-    input         fgvram_cs,   // unused this step
+    input         fgvram_cs,
     input         pal_cs,
     input         scroll_cs,
     input         sprite_cs,
@@ -63,6 +63,10 @@ module jtnmk16_video(
     output        spr_cs,
     input  [31:0] spr_data,
     input         spr_ok,
+    output reg [16:2] fg_addr,
+    output reg        fg_cs,
+    input      [31:0] fg_data,
+    input             fg_ok,
     // Pixel output (5 bits per channel)
     output [4:0]  red,
     output [4:0]  green,
@@ -144,9 +148,26 @@ wire  [9:0] scrx = scroll_x[9:0];
 wire  [8:0] scry = scroll_y[8:0];
 
 // -------------------------------------------------------
-// FG VRAM stub (not rendered in step 1)
+// FG VRAM — 1024 x 16-bit words (10-bit address)
+// CPU: 0x0D0000-0x0D07FF -> cpu_addr[10:1]
+// Video: fixed 32x32 tilemap, column-major {col[4:0], row[4:0]}
 // -------------------------------------------------------
-assign fgvram_dout = 16'hFFFF;
+wire  [9:0] fg_vram_addr = { hdump[7:3], vdump[7:3] };
+wire [15:0] fg_vram_q;
+wire        fg_we = fgvram_cs & ~cpu_rnw;
+
+jtframe_dual_ram #(.DW(16),.AW(10)) u_fgvram(
+    .clk0   ( clk           ),
+    .data0  ( cpu_dout      ),
+    .addr0  ( cpu_addr[10:1]),
+    .we0    ( fg_we         ),
+    .q0     ( fgvram_dout   ),
+    .clk1   ( clk           ),
+    .data1  ( 16'd0         ),
+    .addr1  ( fg_vram_addr  ),
+    .we1    ( 1'b0          ),
+    .q1     ( fg_vram_q     )
+);
 
 // -------------------------------------------------------
 // Convert NMK16 chunky GFX format to jtframe planar format
@@ -173,12 +194,20 @@ endgenerate
 wire [16:0] bg_rom_addr;
 wire        bg_rom_cs;
 wire  [7:0] bg_pxl;       // {pal[3:0], pixel[3:0]}
+reg   [7:0] fg_pxl;
+reg         fg_opaque;
 wire [11:1] spr_ram_addr;
 wire [15:0] spr_ram_q;
 wire  [7:0] spr_pxl;
 wire        spr_opaque = spr_pxl[3:0] != 4'hF;
 wire [12:1] cpu_spr_addr = cpu_addr[12:1];
 wire        spr_we = sprite_cs & ~cpu_rnw;
+reg  [15:0] fg_tile_entry_r;
+reg   [2:0] fg_row_in_tile_r;
+reg   [2:0] fg_pixel_col_r;
+reg   [3:0] fg_palette_r;
+reg   [2:0] fg_pixel_col_req_r;
+wire  [4:0] fg_nibble_base = 5'd31 - { fg_pixel_col_req_r, 2'b00 };
 
 jtframe_scroll #(
     .SIZE   ( 16 ),
@@ -215,6 +244,39 @@ jtframe_scroll #(
 assign gfx_cs   = bg_rom_cs;
 assign gfx_addr = { 3'b0, bg_rom_addr };
 
+always @(posedge clk) begin
+    if (rst) begin
+        fg_addr            <= 15'd0;
+        fg_cs              <= 1'b0;
+        fg_pxl             <= 8'd0;
+        fg_opaque          <= 1'b0;
+        fg_tile_entry_r    <= 16'd0;
+        fg_row_in_tile_r   <= 3'd0;
+        fg_pixel_col_r     <= 3'd0;
+        fg_palette_r       <= 4'd0;
+        fg_pixel_col_req_r <= 3'd0;
+    end else begin
+        fg_cs <= 1'b0;
+
+        if (pxl_cen) begin
+            fg_tile_entry_r    <= fg_vram_q;
+            fg_row_in_tile_r   <= vdump[2:0];
+            fg_pixel_col_r     <= hdump[2:0];
+            fg_addr            <= { fg_tile_entry_r[11:0], fg_row_in_tile_r };
+            fg_palette_r       <= fg_tile_entry_r[15:12];
+            fg_pixel_col_req_r <= fg_pixel_col_r;
+            fg_cs              <= 1'b1;
+            fg_pxl             <= 8'd0;
+            fg_opaque          <= 1'b0;
+        end
+
+        if (fg_ok) begin
+            fg_pxl    <= { fg_palette_r, fg_data[fg_nibble_base-:4] };
+            fg_opaque <= fg_data[fg_nibble_base-:4] != 4'd0;
+        end
+    end
+end
+
 jtnmk16_sprite u_sprite(
     .rst          ( rst          ),
     .clk          ( clk          ),
@@ -242,7 +304,8 @@ jtnmk16_sprite u_sprite(
 //         B[4:1]=bits[7:4],   R[0]=bit[3], G[0]=bit[2], B[0]=bit[1]
 // -------------------------------------------------------
 assign pal_rd_addr = spr_opaque ? { 2'b01, spr_pxl[7:4], spr_pxl[3:0] } :
-                                 { 2'b00, bg_pxl[7:4], bg_pxl[3:0] };
+                     fg_opaque  ? { 2'b10, fg_pxl[7:4], fg_pxl[3:0] }   :
+                                  { 2'b00, bg_pxl[7:4], bg_pxl[3:0] };
 
 assign red   = { pal_q[15:12], pal_q[3]   };
 assign green = { pal_q[11:8],  pal_q[2]   };
