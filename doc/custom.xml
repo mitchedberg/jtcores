@@ -151,4 +151,24 @@
 		</port>
 		<driver status="good" emulation="good" savestate="unsupported"/>
 	</machine>
+	<machine name="tetrist" sourcefile="taito/taito_b.cpp">
+		<description>Tetris (Japan, Taito B-System, Nastar Conversion Kit)</description>
+		<year>1988</year>
+		<manufacturer>Sega</manufacturer>
+		<rom name="c12-03.50" size="131072" crc="38f1ed41" sha1="d11194dd6686e6eba8c481bb0f9662041ca396ed" region="maincpu" offset="0"/>
+		<rom name="c12-02.31" size="131072" crc="ed9530bc" sha1="84c324e4ef0c5c3af04ea000ad3e9c319bd9f2a2" region="maincpu" offset="1"/>
+		<rom name="c12-05.49" size="131072" crc="128e9927" sha1="227b4a43074b66c9ba6f4497eb329fbcc5e3f52b" region="maincpu" offset="40000"/>
+		<rom name="c12-04.30" size="131072" crc="5da7a319" sha1="0c903b3274f6eafe24c8b5ef476dc5e8e3131b20" region="maincpu" offset="40001"/>
+		<rom name="c12-06.37" size="65536"  crc="f2814b38" sha1="846d3cc7a6f1cfbfd5661d6942f24330d21f91f0" region="audiocpu" offset="0"/>
+		<rom name="b81-03.14" size="524288" crc="551b75e6" sha1="5b8388ee2c6262f359c9e6d04c951ea8dc3901c9" region="gfx2" offset="0"/>
+		<rom name="b81-04.15" size="524288" crc="cf734e12" sha1="4201a74468058761454515738fbf3a7b22a66e00" region="gfx2" offset="80000"/>
+		<rom name="b81-02.2"  size="524288" crc="20ec3b86" sha1="fcdcc7f0a09feb824d8d73b1af0aae7ec30fd1ed" region="ymsnd:adpcma" offset="0"/>
+		<rom name="b81-01.1"  size="524288" crc="b33f796b" sha1="6cdb32f56283acdf20eb46a1e658e3bd7c97978c" region="ymsnd:adpcmb" offset="0"/>
+		<display tag="screen" type="raster" rotate="0" width="320" height="224" refresh="60.000000" pixclock="6144000" htotal="384" hbend="0" hbstart="320" vtotal="264" vbend="0" vbstart="224"/>
+		<input players="2" coins="2">
+			<control type="joy" player="1" buttons="2" ways="8"/>
+			<control type="joy" player="2" buttons="2" ways="8"/>
+		</input>
+		<driver status="good" emulation="good" savestate="supported"/>
+	</machine>
 </mame>	

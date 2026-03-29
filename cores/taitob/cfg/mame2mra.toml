@@ -3,9 +3,19 @@ author=["AI-built"]
 
 [parse]
 sourcefile=[ "taito_b.cpp" ]
+main_setnames=[ "tetrist" ]
 skip.setnames=[]
 
 [buttons]
 names=[
     { names="Rotate L,Rotate R" }
 ]
+
+[ROM]
+regions = [
+    { name="maincpu",       width=16, reverse=true, no_offset=true },
+    { name="audiocpu",      start="JTFRAME_BA1_START" },
+    { name="ymsnd:adpcma",  start="ADPCMA_START" },
+    { name="gfx2",          start="JTFRAME_BA2_START", width=8, no_offset=true }
+]
+order = [ "maincpu", "audiocpu", "ymsnd:adpcma", "gfx2" ]
