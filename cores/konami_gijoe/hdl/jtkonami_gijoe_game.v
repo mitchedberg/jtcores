@@ -19,7 +19,7 @@
 
 `default_nettype none
 
-module jtgijoe_game(
+module jtkonami_gijoe_game(
     input           rst,
     input           clk,
     input           clk24,

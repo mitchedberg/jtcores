@@ -93,6 +93,15 @@ jtframe_m68k cpu(
 assign DTACKn    = ~bus_busy & ~BUSn;
 assign intn      = LVBL;
 
+// Clock enable (12 MHz from 48 MHz)
+jtframe_68kdtack_cen #(.W(2)) u_cen(
+    .clk        ( clk       ),
+    .cen_in     ( 1'b1      ),
+    .cpu_cen    ( cpu_cen   ),
+    .cpu_cenb   ( cpu_cenb  ),
+    .dtack_n    ( DTACKn    )
+);
+
 // Address decode
 always @* begin
     rom_cs      = !ASn && A[23:17] == 7'b0_00000;

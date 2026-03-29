@@ -128,7 +128,8 @@ assign vs           = 1'b0;
 assign red          = 4'h0;
 assign green        = 4'h0;
 assign blue         = 4'h0;
-assign snd          = 1'b0;
+assign snd_left     = 16'h0;
+assign snd_right    = 16'h0;
 assign snd_addr     = 10'h0;
 assign snd_cs       = 1'b0;
 

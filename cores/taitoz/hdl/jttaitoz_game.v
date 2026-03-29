@@ -27,7 +27,7 @@ wire [ 7:0] snd_latch;
 wire snd_stb;
 
 // CS signals from main.v
-wire pal_cs, vram_cs, vregs_cs;
+wire vram_cs, vregs_cs;
 wire cpu_rnw;
 
 // BRAM write enables
