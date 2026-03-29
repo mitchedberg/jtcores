@@ -44,6 +44,10 @@ module jtnmk16_main(
     output reg           scroll_cs,
     output reg           io_cs,
 
+    // CPU address for video BRAM writes
+    output        [12:1] cpu_addr,
+    output        [15:0] cpu_dout_o,
+
     // Video RAM read-back (stub: game.v returns 0)
     input         [15:0] mp_dout,    // CPU-side palette read
     input         [15:0] mbg_dout,   // CPU-side bgvram read
@@ -71,10 +75,12 @@ reg  [15:0] cpu_din;
 reg         clr_int;
 wire        intn, bus_cs, bus_busy;
 
-assign main_addr = A[17:1];
-assign ram_addr  = A[15:1];
-assign ram_din   = cpu_dout;
-assign cpu_rnw   = RnW;
+assign main_addr  = A[17:1];
+assign ram_addr   = A[15:1];
+assign ram_din    = cpu_dout;
+assign cpu_rnw    = RnW;
+assign cpu_addr   = A[12:1];
+assign cpu_dout_o = cpu_dout;
 assign ram_dsn   = {UDSn, LDSn};
 assign ram_we    = ram_cs & ~RnW;
 assign BUSn      = ASn | (LDSn & UDSn);
@@ -188,6 +194,6 @@ initial begin
 end
 assign main_addr = 0; assign ram_addr = 0;
 assign ram_din = 0; assign ram_dsn = 0; assign ram_we = 0;
-assign cpu_rnw = 1;
+assign cpu_rnw = 1; assign cpu_addr = 0; assign cpu_dout_o = 0;
 `endif
 endmodule
