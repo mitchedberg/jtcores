@@ -53,14 +53,18 @@ wire [3:0] fine_x = src_x[3:0];
 wire [3:0] fine_y = src_y[3:0];
 wire [9:0] tilemap_addr = { tile_y, tile_x };
 wire [15:0] tile_entry = bg_vram[tilemap_addr];
+wire [1:0] tile_pal_bank = tile_entry[15:14];
 wire [13:0] tile_code = tile_entry[13:0];
 wire [20:2] gfx_req_addr = { tile_code, 5'd0 } +
                            { 14'd0, fine_y, 1'b0 } +
                            { 18'd0, fine_x[3] };
 wire [31:0] gfx_word = gfx_ok ? gfx_data : gfx_latch;
 wire [3:0] pixel_nibble = pick_nibble(gfx_word, fine_x[2:0]);
-wire [10:0] pal_rd_addr = { 3'd0, 4'd0, pixel_nibble };
+wire [10:0] pal_rd_addr = { 5'd0, tile_pal_bank, pixel_nibble };
 wire [15:0] pal_word = pal_ram[pal_rd_addr];
+wire [4:0] pal_red_5 = pal_word[4:0];
+wire [4:0] pal_green_5 = pal_word[9:5];
+wire [4:0] pal_blue_5 = pal_word[14:10];
 
 function [3:0] pick_nibble;
     input [31:0] data;
@@ -143,8 +147,8 @@ assign txt_dout = txt_ram[txt_addr];
 assign gfx_cs   = LHBL & LVBL;
 assign gfx_addr = gfx_req_addr;
 
-assign red   = (LHBL && LVBL && pixel_nibble != 4'd0) ? pal_word[ 4:1] : 4'd0;
-assign green = (LHBL && LVBL && pixel_nibble != 4'd0) ? pal_word[ 9:6] : 4'd0;
-assign blue  = (LHBL && LVBL && pixel_nibble != 4'd0) ? pal_word[14:11] : 4'd0;
+assign red   = (LHBL && LVBL && pixel_nibble != 4'd0) ? pal_red_5[4:1] : 4'd0;
+assign green = (LHBL && LVBL && pixel_nibble != 4'd0) ? pal_green_5[4:1] : 4'd0;
+assign blue  = (LHBL && LVBL && pixel_nibble != 4'd0) ? pal_blue_5[4:1] : 4'd0;
 
 endmodule

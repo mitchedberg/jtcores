@@ -672,10 +672,12 @@ always @(posedge clk) begin
         if (tx_8px_edge) begin
             tx_shift <= tx_shift_nxt;
             tx_pal   <= tx_pal_nxt;
-            if (LHBL & LVBL) begin
+            if (LHBL & LVBL && tx_tile_code != 11'd0) begin
                 tx_rom_pending  <= 1;
                 tx_rom_addr_lat <= {tx_bank_val[0], tx_tile_code[10:0], vdump[2:0], 2'b00};
                 tx_pal_lat      <= tx_tile_pal;
+            end else begin
+                tx_shift_nxt <= 32'd0; // tile 0 = transparent; clear next shift reg
             end
         end else begin
             // tx_shift holds full 32-bit tile word; nibble selected by hdump[2:0]
