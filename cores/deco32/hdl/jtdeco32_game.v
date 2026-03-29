@@ -14,9 +14,9 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 28-3-2026 */
+    Date: 29-3-2026 */
 
-module jttoaplan_vf_game(
+module jtdeco32_game(
     `include "jtframe_game_ports.inc"
 );
 
@@ -25,7 +25,7 @@ wire [ 7:0] snd_latch;
 wire snd_stb;
 
 // CS signals and RnW from main.v
-wire pal_cs, vram_we;
+wire pal_cs;
 wire cpu_rnw;
 
 // BRAM write enables: active when CPU writes and BRAM is selected
@@ -33,7 +33,7 @@ wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
 assign pal_we   = pal_cs   ? bram_we : 2'b00;
 
 // Video-side BRAM addresses (no video module yet — stub to zero)
-assign pal_addr = 0;
+assign pal_addr   = 0;
 
 // Stub assignments — modules not yet instantiated
 assign red        = 0;
@@ -42,13 +42,37 @@ assign blue       = 0;
 assign dip_flip   = 0;
 assign debug_view = 0;
 
-// Pixel clock and timing (stub for now)
-assign pxl_cen    = 0;
-assign pxl2_cen   = 0;
-assign LHBL       = 0;
-assign LVBL       = 0;
-assign HS         = 0;
-assign VS         = 0;
+// Pixel clock and vertical timer
+jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
+    .clk    ( clk                    ),
+    .n      ( 10'd105                ),
+    .m      ( 10'd352                ),
+    .cen    ( {pxl_cen, pxl2_cen}   ),
+    .cenb   (                        )
+);
+
+jtframe_vtimer #(
+    .VB_START   ( 9'd223          ),
+    .VB_END     ( 9'd261          ),
+    .VS_START   ( 9'd231          ),
+    .HCNT_END   ( 9'd455          ),
+    .HB_START   ( 9'd319          ),
+    .HB_END     ( 9'd455          ),
+    .HS_START   ( 9'd360          )
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
+);
 
 // Unused SDRAM buses
 assign tile_cs     = 0;
@@ -57,34 +81,32 @@ assign obj_cs      = 0;
 assign obj_addr    = 0;
 
 `ifndef NOMAIN
-jttoaplan_vf_main u_main(
+jtdeco32_main u_main(
     .rst        ( rst           ),
     .clk        ( clk           ),
     .LVBL       ( LVBL          ),
 
     // SDRAM ROM
     .main_addr  ( main_addr     ),
-    .main_cs    ( main_cs       ),
-    .main_data  ( main_data     ),
-    .main_ok    ( main_ok       ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
 
     // SDRAM Work RAM
     .ram_addr   ( ram_addr      ),
     .ram_we     ( ram_we        ),
-    .ram_dsn    ( ram_dsn       ),
-    .ram_din    ( ram_din       ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
     .cpu_rnw    ( cpu_rnw       ),
-    .ram_cs     ( ram_cs        ),
-    .ram_data   ( ram_data      ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
     .ram_ok     ( ram_ok        ),
 
-    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
+    // CPU bus → video BRAMs (CS signals)
     .pal_cs     ( pal_cs        ),
-    .vram_we    ( vram_we       ),
 
-    // Video RAM CPU-side read-back (from generated BRAM ports)
+    // Video RAM CPU-side read-back (stub: game.v returns 0)
     .mp_dout    ( mp_dout       ),
-    .mv_dout    ( mv_dout       ),
 
     // I/O
     .joystick1  ( joystick1     ),
@@ -99,7 +121,7 @@ jttoaplan_vf_main u_main(
 `endif
 
 `ifndef NOSOUND
-jttoaplan_vf_snd u_snd(
+jtdeco32_snd u_snd(
     .rst        ( rst               ),
     .clk        ( clk               ),
     .snd_latch  ( snd_latch         ),
@@ -108,6 +130,10 @@ jttoaplan_vf_snd u_snd(
     .snd_cs     ( snd_cs            ),
     .snd_data   ( snd_data          ),
     .snd_ok     ( snd_ok            ),
+    .adpcm_addr ( adpcm_addr        ),
+    .adpcm_cs   ( adpcm_cs          ),
+    .adpcm_data ( adpcm_data        ),
+    .adpcm_ok   ( adpcm_ok          ),
     .snd_left   ( snd_left          ),
     .snd_right  ( snd_right         ),
     .sample     ( sample            ),
@@ -119,6 +145,8 @@ assign snd_right   = 0;
 assign sample      = 0;
 assign snd_cs      = 0;
 assign snd_addr    = 0;
+assign adpcm_cs    = 0;
+assign adpcm_addr  = 0;
 `endif
 
 endmodule

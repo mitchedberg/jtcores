@@ -12,40 +12,147 @@
     You should have received a copy of the GNU General Public License
     along with JTCORES.  If not, see <http://www.gnu.org/licenses/>.
 
-    Author: (c) 2025 JTCORES
-*/
+    Author: Jose Tejada Gomez. Twitter: @topapate
+    Version: 1.0
+    Date: 29-3-2026 */
 
 module jttaitoz_game(
-    `include "jtframe_game_ports.inc"
+    `include "jtframe_game_ports.svh"
+    /* jtframe_mem_ports */
+);
+`include "mem_ports.inc"
+
+// Inter-module wires
+wire [ 7:0] snd_latch;
+wire snd_stb;
+
+// CS signals from main.v
+wire pal_cs, vram_cs, vregs_cs;
+wire cpu_rnw;
+
+// BRAM write enables
+wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
+assign pal_we = pal_cs ? bram_we : 2'b00;
+assign vram_we = vram_cs ? bram_we : 2'b00;
+assign vregs_we = vregs_cs ? bram_we : 2'b00;
+
+// Video-side BRAM addresses (stub to zero)
+assign pal_addr = 0;
+assign vram_addr = 0;
+assign vregs_addr = 0;
+
+// Stub video output
+assign red   = 0;
+assign green = 0;
+assign blue  = 0;
+assign dip_flip   = 0;
+assign debug_view = 0;
+
+// Pixel clock
+jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
+    .clk    ( clk                    ),
+    .n      ( 10'd105                ),
+    .m      ( 10'd352                ),
+    .cen    ( {pxl_cen, pxl2_cen}   ),
+    .cenb   (                        )
 );
 
-// TODO: Implement Taito Z System core
-// - TC0220IOC input/output controller
-// - TC0140SYT sound bridge
-// - 68000 main CPU at 12MHz
-// - Z80 sound CPU at 4MHz
-// - YM2610 @ 8MHz
+jtframe_vtimer #(
+    .VB_START   ( 9'd223          ),
+    .VB_END     ( 9'd261          ),
+    .VS_START   ( 9'd231          ),
+    .HCNT_END   ( 9'd455          ),
+    .HB_START   ( 9'd319          ),
+    .HB_END     ( 9'd455          ),
+    .HS_START   ( 9'd360          )
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
+);
 
-assign red = 8'd0;
-assign green = 8'd0;
-assign blue = 8'd0;
-assign HS = 1'b0;
-assign VS = 1'b0;
-assign LHBL = 1'b1;
-assign LVBL = 1'b1;
+// Stub tile and sprite ROM buses
+assign tile_cs = 0;
+assign tile_addr = 0;
+assign obj_cs = 0;
+assign obj_addr = 0;
 
-assign main_addr = 17'd0;
-assign main_dout = 16'd0;
-assign main_cs = 1'b0;
-assign main_rnw = 1'b1;
+`ifndef NOMAIN
+jttaitoz_main u_main(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .LVBL       ( LVBL          ),
 
-assign snd_addr = 17'd0;
-assign snd_cs = 1'b0;
+    // SDRAM ROM
+    .main_addr  ( main_addr     ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
 
-assign scr_addr = 19'd0;
-assign scr_cs = 1'b0;
+    // SDRAM Work RAM
+    .ram_addr   ( ram_addr      ),
+    .ram_we     ( ram_we        ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
+    .ram_ok     ( ram_ok        ),
 
-assign obj_addr = 20'd0;
-assign obj_cs = 1'b0;
+    // CPU bus → video BRAMs
+    .pal_cs     ( pal_cs        ),
+    .vram_cs    ( vram_cs       ),
+    .vregs_cs   ( vregs_cs      ),
+
+    // Video RAM read-back
+    .mp_dout    ( 16'h0         ),
+    .mv_dout    ( 16'h0         ),
+    .mr_dout    ( 16'h0         ),
+
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
+
+    // Sound latch
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       )
+);
+`endif
+
+`ifndef NOSOUND
+jttaitoz_snd u_snd(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       ),
+    .snd_addr   ( snd_addr      ),
+    .snd_cs     ( snd_cs        ),
+    .snd_data   ( snd_data      ),
+    .snd_ok     ( snd_ok        ),
+    .tile_addr  ( tile_addr     ),
+    .tile_cs    ( tile_cs       ),
+    .tile_data  ( tile_data     ),
+    .tile_ok    ( tile_ok       ),
+    .obj_addr   ( obj_addr      ),
+    .obj_cs     ( obj_cs        ),
+    .obj_data   ( obj_data      ),
+    .obj_ok     ( obj_ok        ),
+    .snd_left   ( snd_left      ),
+    .snd_right  ( snd_right     ),
+    .sample     ( sample        ),
+    .debug_bus  ( debug_bus     )
+);
+`endif
 
 endmodule

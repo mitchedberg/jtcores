@@ -25,18 +25,16 @@ wire [ 7:0] snd_latch;
 wire snd_stb;
 
 // CS signals and RnW from main.v
-wire pal_cs, vram_cs, vregs_cs;
+wire pal_cs, vregs_cs;
 wire cpu_rnw;
 
 // BRAM write enables: active when CPU writes and BRAM is selected
 wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
 assign pal_we   = pal_cs   ? bram_we : 2'b00;
-assign vram_we  = vram_cs  ? bram_we : 2'b00;
 assign vregs_we = vregs_cs ? bram_we : 2'b00;
 
 // Video-side BRAM addresses (no video module yet — stub to zero)
 assign pal_addr   = 0;
-assign vram_addr  = 0;
 assign vregs_addr = 0;
 
 // Stub assignments — modules not yet instantiated
@@ -46,39 +44,13 @@ assign blue       = 0;
 assign dip_flip   = 0;
 assign debug_view = 0;
 
-// Pixel clock: 48 MHz * 105 / 352 = 14.318181 MHz (pxl2_cen)
-// pxl_cen = half of pxl2_cen = 7.159 MHz
-// cen[0] = base rate (pxl2_cen), cen[1] = half rate (pxl_cen)
-jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
-    .clk    ( clk                    ),
-    .n      ( 10'd105                ),
-    .m      ( 10'd352                ),
-    .cen    ( {pxl_cen, pxl2_cen}   ),
-    .cenb   (                        )
-);
-
-jtframe_vtimer #(
-    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
-    .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
-    .VS_START   ( 9'd231          ),  // vsync pulse
-    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
-    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
-    .HB_END     ( 9'd455          ),  // hblank to end of line
-    .HS_START   ( 9'd360          )   // hsync pulse
-) u_vtimer(
-    .clk        ( clk             ),
-    .pxl_cen    ( pxl_cen         ),
-    .vdump      (                 ),
-    .vrender    (                 ),
-    .vrender1   (                 ),
-    .H          (                 ),
-    .Hinit      (                 ),
-    .Vinit      (                 ),
-    .LHBL       ( LHBL            ),
-    .LVBL       ( LVBL            ),
-    .HS         ( HS              ),
-    .VS         ( VS              )
-);
+// Pixel clock and timing (stub for now)
+assign pxl_cen    = 0;
+assign pxl2_cen   = 0;
+assign LHBL       = 0;
+assign LVBL       = 0;
+assign HS         = 0;
+assign VS         = 0;
 
 // Unused SDRAM buses
 assign tile_cs     = 0;
@@ -94,54 +66,61 @@ jtgaelco_main u_main(
 
     // SDRAM ROM
     .main_addr  ( main_addr     ),
-    .main_dout  ( main_dout     ),
     .main_cs    ( main_cs       ),
+    .main_data  ( main_data     ),
     .main_ok    ( main_ok       ),
 
-    // SDRAM sound
-    .snd_addr   ( snd_addr      ),
-    .snd_dout   ( snd_dout      ),
-    .snd_cs     ( snd_cs        ),
-    .snd_ok     ( snd_ok        ),
-
-    // CPU RAM
+    // SDRAM Work RAM
     .ram_addr   ( ram_addr      ),
     .ram_we     ( ram_we        ),
+    .ram_dsn    ( ram_dsn       ),
     .ram_din    ( ram_din       ),
-    .ram_dout   ( ram_dout      ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .ram_cs     ( ram_cs        ),
+    .ram_data   ( ram_data      ),
+    .ram_ok     ( ram_ok        ),
 
-    // BRAM
-    .pal_we     ( pal_we        ),
-    .pal_dout   ( mp_dout       ),
-    .vram_we    ( vram_we       ),
-    .vram_dout  ( mv_dout       ),
-    .vregs_we   ( vregs_we      ),
-    .vregs_dout ( mr_dout       ),
+    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
+    .pal_cs     ( pal_cs        ),
+    .vregs_cs   ( vregs_cs      ),
 
-    // Sound
+    // Video RAM CPU-side read-back (from generated BRAM ports)
+    .mp_dout    ( mp_dout       ),
+    .mr_dout    ( mr_dout       ),
+
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
+
+    // Sound latch
     .snd_latch  ( snd_latch     ),
     .snd_stb    ( snd_stb       )
 );
 `endif
 
-`ifndef NOSND
+`ifndef NOSOUND
 jtgaelco_snd u_snd(
-    .rst        ( rst           ),
-    .clk        ( clk           ),
-
-    // SDRAM sound bank
-    .snd_addr   ( snd_addr      ),
-    .snd_dout   ( snd_dout      ),
-    .snd_cs     ( snd_cs        ),
-    .snd_ok     ( snd_ok        ),
-
-    // From main CPU
-    .snd_latch  ( snd_latch     ),
-    .snd_stb    ( snd_stb       ),
-
-    // Audio output
-    .snd        ( snd           )
+    .rst        ( rst               ),
+    .clk        ( clk               ),
+    .snd_latch  ( snd_latch         ),
+    .snd_stb    ( snd_stb           ),
+    .snd_addr   ( snd_addr          ),
+    .snd_cs     ( snd_cs            ),
+    .snd_data   ( snd_data          ),
+    .snd_ok     ( snd_ok            ),
+    .snd        ( snd_left          ),
+    .sample     ( sample            ),
+    .debug_bus  ( debug_bus         )
 );
+assign snd_right = snd_left;
+`else
+assign snd_left    = 0;
+assign snd_right   = 0;
+assign sample      = 0;
+assign snd_cs      = 0;
+assign snd_addr    = 0;
 `endif
 
 endmodule

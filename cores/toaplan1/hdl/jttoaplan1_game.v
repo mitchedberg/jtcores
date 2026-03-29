@@ -12,89 +12,115 @@
     You should have received a copy of the GNU General Public License
     along with JTCORES.  If not, see <http://www.gnu.org/licenses/>.
 
-    Author: (community) jotego
-    Date: 2026-03-28 */
-
-`timescale 1ns/1ps
+    Author: Jose Tejada Gomez. Twitter: @topapate
+    Version: 1.0
+    Date: 28-3-2026 */
 
 module jttoaplan1_game(
-    input           rst,
-    input           clk,
-    input           rst24,
-    input           clk24,
-
-    // Buttons and DIP switches
-    input   [ 1:0]  button,
-    input   [ 1:0]  start_button,
-    input   [15:0]  dipsw_a,
-    input   [15:0]  dipsw_b,
-
-    // Video output
-    output  [ 1:0]  red,
-    output  [ 1:0]  green,
-    output  [ 1:0]  blue,
-    output          hs,
-    output          vs,
-    output          blank_n,
-    output          sync_n,
-
-    // Audio output
-    output  signed [15:0]  snd,
-
-    // SDRAM interface
-    input           sdram_ack,
-    input           sdram_valid,
-    input   [31:0]  sdram_dout,
-    output  [22:0]  sdram_addr,
-    output  [ 3:0]  sdram_be,
-    output          sdram_wr,
-    output          sdram_req,
-    input           sdram_rdy,
-
-    // ROM LOAD interface
-    input   [24:0]  ioctl_addr,
-    input   [ 7:0]  ioctl_dout,
-    input           ioctl_wr,
-    output  [21:0]  prog_addr,
-    output  [ 7:0]  prog_data,
-    output  [ 1:0]  prog_mask,
-    output          prog_we,
-    output          prog_rd,
-
-    input           ioctl_upload,
-    input           ioctl_download,
-    output          downloading,
-
-    // Status lines
-    output          game_led,
-    output          debug_view
+    `include "jtframe_game_ports.inc"
 );
 
-    // Stub implementation
-    reg [7:0] dummy;
+// Inter-module wires
+wire [ 7:0] snd_latch;
+wire snd_stb;
 
-    assign red       = 2'b00;
-    assign green     = 2'b00;
-    assign blue      = 2'b00;
-    assign hs        = 1'b1;
-    assign vs        = 1'b1;
-    assign blank_n   = 1'b0;
-    assign sync_n    = 1'b1;
-    assign snd       = 16'd0;
+// CS signals and RnW from main.v
+wire spr_cs, pal_cs;
+wire cpu_rnw;
 
-    assign sdram_addr = 23'd0;
-    assign sdram_be   = 4'hf;
-    assign sdram_wr   = 1'b0;
-    assign sdram_req  = 1'b0;
+// BRAM write enables: active when CPU writes and BRAM is selected
+wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
+assign spr_we   = spr_cs   ? bram_we : 2'b00;
+assign pal_we   = pal_cs   ? bram_we : 2'b00;
 
-    assign prog_addr  = 22'd0;
-    assign prog_data  = 8'd0;
-    assign prog_mask  = 2'b00;
-    assign prog_we    = 1'b0;
-    assign prog_rd    = 1'b0;
+// Video-side BRAM addresses (no video module yet — stub to zero)
+assign spr_addr = 0;
+assign pal_addr = 0;
 
-    assign downloading = 1'b0;
-    assign game_led    = 1'b0;
-    assign debug_view  = 1'b0;
+// Stub assignments — modules not yet instantiated
+assign red        = 0;
+assign green      = 0;
+assign blue       = 0;
+assign dip_flip   = 0;
+assign debug_view = 0;
+
+// Pixel clock and timing (stub for now)
+assign pxl_cen    = 0;
+assign pxl2_cen   = 0;
+assign LHBL       = 0;
+assign LVBL       = 0;
+assign HS         = 0;
+assign VS         = 0;
+
+// Unused SDRAM buses
+assign tile_cs     = 0;
+assign tile_addr   = 0;
+assign obj_cs      = 0;
+assign obj_addr    = 0;
+
+`ifndef NOMAIN
+jttoaplan1_main u_main(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .LVBL       ( LVBL          ),
+
+    // SDRAM ROM
+    .main_addr  ( main_addr     ),
+    .main_cs    ( main_cs       ),
+    .main_data  ( main_data     ),
+    .main_ok    ( main_ok       ),
+
+    // SDRAM Work RAM
+    .ram_addr   ( ram_addr      ),
+    .ram_we     ( ram_we        ),
+    .ram_dsn    ( ram_dsn       ),
+    .ram_din    ( ram_din       ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .ram_cs     ( ram_cs        ),
+    .ram_data   ( ram_data      ),
+    .ram_ok     ( ram_ok        ),
+
+    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
+    .spr_cs     ( spr_cs        ),
+    .pal_cs     ( pal_cs        ),
+
+    // Video RAM CPU-side read-back (from generated BRAM ports)
+    .ms_dout    ( ms_dout       ),
+    .mp_dout    ( mp_dout       ),
+
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
+
+    // Sound latch
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       )
+);
+`endif
+
+`ifndef NOSOUND
+jttoaplan1_snd u_snd(
+    .rst        ( rst               ),
+    .clk        ( clk               ),
+    .snd_latch  ( snd_latch         ),
+    .snd_stb    ( snd_stb           ),
+    .snd_addr   ( snd_addr          ),
+    .snd_cs     ( snd_cs            ),
+    .snd_data   ( snd_data          ),
+    .snd_ok     ( snd_ok            ),
+    .snd        ( snd_left          ),
+    .debug_bus  ( debug_bus         )
+);
+assign snd_right = snd_left;
+assign sample    = 0;
+`else
+assign snd_left    = 0;
+assign snd_right   = 0;
+assign sample      = 0;
+assign snd_cs      = 0;
+assign snd_addr    = 0;
+`endif
 
 endmodule

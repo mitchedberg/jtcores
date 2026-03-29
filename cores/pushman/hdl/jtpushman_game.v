@@ -12,10 +12,9 @@
     You should have received a copy of the GNU General Public License
     along with JTCORES.  If not, see <http://www.gnu.org/licenses/>.
 
-    Author: (JTCORES)
-    Date: 2026-03-28
-
-*/
+    Author: Jose Tejada Gomez. Twitter: @topapate
+    Version: 1.0
+    Date: 29-3-2026 */
 
 module jtpushman_game(
     `include "jtframe_game_ports.svh"
@@ -23,9 +22,145 @@ module jtpushman_game(
 );
 `include "mem_ports.inc"
 
-    // Placeholder for PUSHMAN game logic
-    assign video_rgb = 16'h0;
-    assign video_en = 1'b0;
-    assign game_led = 1'b0;
+// Inter-module wires
+wire [ 7:0] snd_latch;
+wire snd_stb;
+
+// CS signals from main.v
+wire pal_cs, spr_cs;
+wire cpu_rnw;
+
+// BRAM write enables
+wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
+assign pal_we = pal_cs ? bram_we : 2'b00;
+assign spr_we = spr_cs ? bram_we : 2'b00;
+
+// Video-side BRAM addresses (stub to zero)
+assign pal_addr = 0;
+assign spr_addr = 0;
+
+// Stub video output
+assign red   = 0;
+assign green = 0;
+assign blue  = 0;
+assign dip_flip   = 0;
+assign debug_view = 0;
+
+// Pixel clock
+jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
+    .clk    ( clk                    ),
+    .n      ( 10'd105                ),
+    .m      ( 10'd352                ),
+    .cen    ( {pxl_cen, pxl2_cen}   ),
+    .cenb   (                        )
+);
+
+jtframe_vtimer #(
+    .VB_START   ( 9'd223          ),
+    .VB_END     ( 9'd261          ),
+    .VS_START   ( 9'd231          ),
+    .HCNT_END   ( 9'd455          ),
+    .HB_START   ( 9'd319          ),
+    .HB_END     ( 9'd455          ),
+    .HS_START   ( 9'd360          )
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
+);
+
+// Stub GFX and tile ROM buses
+assign gfx0_cs = 0;
+assign gfx0_addr = 0;
+assign gfx1_cs = 0;
+assign gfx1_addr = 0;
+assign gfx2_cs = 0;
+assign gfx2_addr = 0;
+assign gfx3_cs = 0;
+assign gfx3_addr = 0;
+
+`ifndef NOMAIN
+jtpushman_main u_main(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .LVBL       ( LVBL          ),
+
+    // SDRAM ROM
+    .main_addr  ( main_addr     ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
+
+    // SDRAM Work RAM
+    .ram_addr   ( ram_addr      ),
+    .ram_we     ( ram_we        ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
+    .ram_ok     ( ram_ok        ),
+
+    // CPU bus → video BRAMs
+    .pal_cs     ( pal_cs        ),
+    .spr_cs     ( spr_cs        ),
+
+    // Video RAM read-back
+    .mp_dout    ( 16'h0         ),
+    .ms_dout    ( 16'h0         ),
+
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
+
+    // Sound latch
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       )
+);
+`endif
+
+`ifndef NOSOUND
+jtpushman_snd u_snd(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       ),
+    .snd_addr   ( snd_addr      ),
+    .snd_cs     ( snd_cs        ),
+    .snd_data   ( snd_data      ),
+    .snd_ok     ( snd_ok        ),
+    .gfx0_addr  ( gfx0_addr     ),
+    .gfx0_cs    ( gfx0_cs       ),
+    .gfx0_data  ( gfx0_data     ),
+    .gfx0_ok    ( gfx0_ok       ),
+    .gfx1_addr  ( gfx1_addr     ),
+    .gfx1_cs    ( gfx1_cs       ),
+    .gfx1_data  ( gfx1_data     ),
+    .gfx1_ok    ( gfx1_ok       ),
+    .gfx2_addr  ( gfx2_addr     ),
+    .gfx2_cs    ( gfx2_cs       ),
+    .gfx2_data  ( gfx2_data     ),
+    .gfx2_ok    ( gfx2_ok       ),
+    .gfx3_addr  ( gfx3_addr     ),
+    .gfx3_cs    ( gfx3_cs       ),
+    .gfx3_data  ( gfx3_data     ),
+    .gfx3_ok    ( gfx3_ok       ),
+    .snd_left   ( snd_left      ),
+    .snd_right  ( snd_right     ),
+    .sample     ( sample        ),
+    .debug_bus  ( debug_bus     )
+);
+`endif
 
 endmodule

@@ -12,143 +12,168 @@
     You should have received a copy of the GNU General Public License
     along with JTCORES.  If not, see <http://www.gnu.org/licenses/>.
 
-    Author: jotego
+    Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 28-Mar-2026
+    Date: 28-3-2026 */
 
-*/
-
-module jtbbusters_game (
-    input           rst,
-    input           clk,
-    input           clk24,
-    input           clk48,
-    // video
-    output          pxl_cen,
-    output          pxl2_cen,
-    output   [7:0]  red,
-    output   [7:0]  green,
-    output   [7:0]  blue,
-    output          hs,
-    output          vs,
-    output          blank,
-    output          blankn,
-    // cabinet I/O
-    input   [ 3:0]  cab_1p,
-    input   [ 3:0]  cab_2p,
-    input   [ 3:0]  cab_3p,
-    input   [ 3:0]  cab_4p,
-    output  [ 3:0]  cab_led,
-    input           coin_left,
-    input           coin_right,
-    input           service,
-    // SDRAM interface
-    output          sdram_req,
-    output  [22:0]  sdram_addr,
-    input   [31:0]  sdram_data,
-    input           sdram_ack,
-    output  [ 3:0]  sdram_we,
-    output  [31:0]  sdram_wdata,
-    // ROM LOAD
-    inout   [15:0]  rom_data,
-    output  [21:0]  rom_addr,
-    output          rom_cs,
-    output          rom_ok,
-    // Palette BRAM
-    output  [10:0]  pal_addr,
-    output  [15:0]  pal_dout,
-    output          pal_we,
-    input   [15:0]  pal_din,
-    // Sprite BRAM
-    output  [12:0]  spr_addr,
-    output  [15:0]  spr_dout,
-    output          spr_we,
-    input   [15:0]  spr_din,
-    // VRAM0 BRAM
-    output  [12:0]  vram0_addr,
-    output  [15:0]  vram0_dout,
-    output          vram0_we,
-    input   [15:0]  vram0_din,
-    // VRAM1 BRAM
-    output  [12:0]  vram1_addr,
-    output  [15:0]  vram1_dout,
-    output          vram1_we,
-    input   [15:0]  vram1_din,
-    // Video regs BRAM
-    output  [13:0]  vregs_addr,
-    output  [15:0]  vregs_dout,
-    output          vregs_we,
-    input   [15:0]  vregs_din,
-    // Audio
-    output  [15:0]  snd_left,
-    output  [15:0]  snd_right,
-    // Debug
-    input   [ 3:0]  gfx_en
-    /* jtframe_mem_ports */
-);
-`include "mem_ports.inc"
-
-wire clk_cpu, clk_snd;
-
-// Clock dividers
-jtframe_frac_cen #(.WD(4)) u_frac_12(
-    .clk        ( clk24         ),
-    .cen        ( clk_cpu       ),  // 12 MHz for 68k
-    .n          ( 4'd2          ),
-    .m          ( 4'd0          )
+module jtbbusters_game(
+    `include "jtframe_game_ports.inc"
 );
 
-jtframe_frac_cen #(.WD(4)) u_frac_4(
-    .clk        ( clk24         ),
-    .cen        ( clk_snd       ),  // 4 MHz for Z80
-    .n          ( 4'd6          ),
-    .m          ( 4'd0          )
+// Inter-module wires
+wire [ 7:0] snd_latch;
+wire snd_stb;
+
+// CS signals and RnW from main.v
+wire spr_cs, pal_cs, vram0_cs, vram1_cs, vregs_cs;
+wire wram_cs;
+wire cpu_rnw;
+wire [15:0] main_dout;
+wire [ 1:0] dsn;
+
+// BRAM write enables: active when CPU writes and BRAM is selected
+wire [1:0] bram_we = {2{~cpu_rnw}} & ~dsn;
+assign spr_we   = spr_cs   ? bram_we : 2'b00;
+assign pal_we   = pal_cs   ? bram_we : 2'b00;
+assign vram0_we = vram0_cs ? bram_we : 2'b00;
+assign vram1_we = vram1_cs ? bram_we : 2'b00;
+assign vregs_we = vregs_cs ? bram_we : 2'b00;
+
+// Video-side BRAM addresses (no video module yet — stub to zero)
+assign spr_addr   = 0;
+assign pal_addr   = 0;
+assign vram0_addr = 0;
+assign vram1_addr = 0;
+assign vregs_addr = 0;
+
+// Stub assignments — modules not yet instantiated
+assign red        = 0;
+assign green      = 0;
+assign blue       = 0;
+assign dip_flip   = 0;
+assign debug_view = 0;
+
+// Pixel clock: 48 MHz * 105 / 352 = 14.318181 MHz (pxl2_cen)
+// pxl_cen = half of pxl2_cen = 7.159 MHz
+// cen[0] = base rate (pxl2_cen), cen[1] = half rate (pxl_cen)
+jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
+    .clk    ( clk                    ),
+    .n      ( 10'd105                ),
+    .m      ( 10'd352                ),
+    .cen    ( {pxl_cen, pxl2_cen}   ),
+    .cenb   (                        )
 );
 
-// Stubs for now - all outputs tied to safe defaults
-assign pxl_cen  = 1'b0;
-assign pxl2_cen = 1'b0;
-assign red      = 8'd0;
-assign green    = 8'd0;
-assign blue     = 8'd0;
-assign hs       = 1'b0;
-assign vs       = 1'b0;
-assign blank    = 1'b1;
-assign blankn   = 1'b0;
+jtframe_vtimer #(
+    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
+    .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
+    .VS_START   ( 9'd231          ),  // vsync pulse
+    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
+    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
+    .HB_END     ( 9'd455          ),  // hblank to end of line
+    .HS_START   ( 9'd360          )   // hsync pulse
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
+);
 
-assign cab_led  = 4'h0;
+// Unused SDRAM buses
+assign tile_cs     = 0;
+assign tile_addr   = 0;
+assign obj_cs      = 0;
+assign obj_addr    = 0;
 
-assign sdram_req    = 1'b0;
-assign sdram_addr   = 23'd0;
-assign sdram_we     = 4'h0;
-assign sdram_wdata  = 32'd0;
+`ifndef NOMAIN
+jtbbusters_main u_main(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .LVBL       ( LVBL          ),
 
-assign rom_cs   = 1'b0;
-assign rom_ok   = 1'b0;
-assign rom_addr = 22'd0;
-assign rom_data = 16'hzzzz;
+    // SDRAM ROM
+    .main_addr  ( main_addr     ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
 
-assign pal_addr   = 11'd0;
-assign pal_dout   = 16'd0;
-assign pal_we     = 1'b0;
+    // SDRAM Work RAM
+    .ram_addr   ( ram_addr      ),
+    .ram_we     ( ram_we        ),
+    .dsn        ( dsn           ),
+    .main_dout  ( main_dout     ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( wram_cs       ),
+    .ram_dout   ( ram_data      ),
+    .ram_ok     ( ram_ok        ),
 
-assign spr_addr   = 13'd0;
-assign spr_dout   = 16'd0;
-assign spr_we     = 1'b0;
+    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
+    .spr_cs     ( spr_cs        ),
+    .pal_cs     ( pal_cs        ),
+    .vram0_cs   ( vram0_cs      ),
+    .vram1_cs   ( vram1_cs      ),
+    .vregs_cs   ( vregs_cs      ),
 
-assign vram0_addr  = 13'd0;
-assign vram0_dout  = 16'd0;
-assign vram0_we    = 1'b0;
+    // Video RAM CPU-side read-back (from generated BRAM ports)
+    .ms_dout    ( ms_dout       ),
+    .mp_dout    ( mp_dout       ),
+    .m0_dout    ( m0_dout       ),
+    .m1_dout    ( m1_dout       ),
+    .mr_dout    ( mr_dout       ),
 
-assign vram1_addr  = 13'd0;
-assign vram1_dout  = 16'd0;
-assign vram1_we    = 1'b0;
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
 
-assign vregs_addr  = 14'd0;
-assign vregs_dout  = 16'd0;
-assign vregs_we    = 1'b0;
+    // Sound latch
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       )
+);
+`endif
 
-assign snd_left   = 16'd0;
-assign snd_right  = 16'd0;
+`ifndef NOSOUND
+jtbbusters_snd u_snd(
+    .rst        ( rst               ),
+    .clk        ( clk               ),
+    .snd_latch  ( snd_latch         ),
+    .snd_stb    ( snd_stb           ),
+    .snd_addr   ( snd_addr          ),
+    .snd_cs     ( snd_cs            ),
+    .snd_data   ( snd_data          ),
+    .snd_ok     ( snd_ok            ),
+    .ym2610a_addr( ym2610a_addr     ),
+    .ym2610a_cs ( ym2610a_cs        ),
+    .ym2610a_data( ym2610a_data     ),
+    .ym2610a_ok ( ym2610a_ok        ),
+    .ym2610b_addr( ym2610b_addr     ),
+    .ym2610b_cs ( ym2610b_cs        ),
+    .ym2610b_data( ym2610b_data     ),
+    .ym2610b_ok ( ym2610b_ok        ),
+    .snd_left   ( snd_left          ),
+    .snd_right  ( snd_right         ),
+    .sample     ( sample            ),
+    .debug_bus  ( debug_bus         )
+);
+`else
+assign snd_left    = 0;
+assign snd_right   = 0;
+assign sample      = 0;
+assign snd_cs      = 0;
+assign snd_addr    = 0;
+assign ym2610a_cs  = 0;
+assign ym2610a_addr= 0;
+assign ym2610b_cs  = 0;
+assign ym2610b_addr= 0;
+`endif
 
 endmodule

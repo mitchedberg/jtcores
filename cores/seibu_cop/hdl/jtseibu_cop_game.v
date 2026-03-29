@@ -3,37 +3,66 @@
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
+
     JTCORES program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
+
     You should have received a copy of the GNU General Public License
     along with JTCORES.  If not, see <http://www.gnu.org/licenses/>.
-    Author: (community)
-    Date: 2026-03-28
-*/
+
+    Author: Jose Tejada Gomez. Twitter: @topapate
+    Version: 1.0
+    Date: 28-3-2026 */
 
 module jtseibu_cop_game(
     `include "jtframe_game_ports.inc"
 );
 
-// Pixel clock divider for Seibu COP (27.164 MHz nominal)
+// Inter-module wires
+wire [ 7:0] snd_latch;
+wire snd_stb;
+
+// CS signals and RnW from main.v
+wire pal_cs, vram_cs, obj_cs;
+wire cpu_rnw;
+
+// BRAM write enables: active when CPU writes and BRAM is selected
+wire [1:0] bram_we = {2{~cpu_rnw}} & ~dsn;
+assign pal_we   = pal_cs   ? bram_we : 2'b00;
+assign vram_we  = vram_cs  ? bram_we : 2'b00;
+assign obj_we   = obj_cs   ? bram_we : 2'b00;
+
+// Video-side BRAM addresses (no video module yet — stub to zero)
+assign pal_addr   = 0;
+assign vram_addr  = 0;
+assign obj_addr   = 0;
+
+// Stub assignments — modules not yet instantiated
+assign red        = 0;
+assign green      = 0;
+assign blue       = 0;
+assign dip_flip   = 0;
+assign debug_view = 0;
+
+// Pixel clock: 48 MHz * 44 / 39 = 27.03 MHz
 jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
     .clk    ( clk                    ),
-    .n      ( 10'd44                 ),  // 24MHz * 44 / 39 = 27.03 MHz
+    .n      ( 10'd44                 ),
     .m      ( 10'd39                 ),
     .cen    ( {pxl_cen, pxl2_cen}   ),
     .cenb   (                        )
 );
 
 jtframe_vtimer #(
-    .VB_START   ( 9'd223          ),  // 224 visible lines
-    .VB_END     ( 9'd261          ),  // 262 total lines
+    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
+    .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
     .VS_START   ( 9'd231          ),  // vsync pulse
-    .HCNT_END   ( 9'd455          ),  // 456 total pixels
-    .HB_START   ( 9'd319          ),  // 320 visible pixels
-    .HB_END     ( 9'd455          ),
-    .HS_START   ( 9'd360          )
+    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
+    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
+    .HB_END     ( 9'd455          ),  // hblank to end of line
+    .HS_START   ( 9'd360          )   // hsync pulse
 ) u_vtimer(
     .clk        ( clk             ),
     .pxl_cen    ( pxl_cen         ),
@@ -49,27 +78,11 @@ jtframe_vtimer #(
     .VS         ( VS              )
 );
 
-// BRAM write enables - will be driven by main CPU
-wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
-assign pal_we   = pal_cs   ? bram_we : 2'b00;
-assign vram_we  = vram_cs  ? bram_we : 2'b00;
-assign obj_we   = obj_cs   ? bram_we : 2'b00;
-
-// Stubs: video module not yet implemented
-assign red      = 0;
-assign green    = 0;
-assign blue     = 0;
-assign dip_flip = 0;
-assign debug_view = 0;
-
-// BRAM addresses from video module (stub)
-assign pal_addr  = 0;
-assign vram_addr = 0;
-assign obj_addr  = 0;
-
-// SDRAM bus stubs
-assign gfx_cs    = 0;
-assign gfx_addr  = 0;
+// Unused SDRAM buses
+assign tile_cs     = 0;
+assign tile_addr   = 0;
+assign obj_cs      = 0;
+assign obj_addr    = 0;
 
 `ifndef NOMAIN
 jtseibu_cop_main u_main(
@@ -79,58 +92,61 @@ jtseibu_cop_main u_main(
 
     // SDRAM ROM
     .main_addr  ( main_addr     ),
-    .main_dout  ( main_dout     ),
+    .rom_cs     ( rom_cs        ),
+    .rom_data   ( rom_data      ),
+    .rom_ok     ( rom_ok        ),
 
-    // Sound interface
-    .snd_latch  (               ),
-    .snd_stb    (               ),
-
-    // CPU RAM
+    // SDRAM Work RAM
     .ram_addr   ( ram_addr      ),
-    .ram_din    ( ram_din       ),
-    .ram_dout   ( ram_dout      ),
     .ram_we     ( ram_we        ),
-    .ram_dsn    ( ram_dsn       ),
+    .dsn        ( dsn           ),
+    .main_dout  ( main_dout     ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( wram_cs       ),
+    .ram_dout   ( ram_dout      ),
+    .ram_ok     ( ram_ok        ),
 
-    // BRAM: Palette, VRAM, OBJ
-    .pal_addr   ( pal_addr      ),
+    // CPU bus → video BRAMs (CS signals)
     .pal_cs     ( pal_cs        ),
-    .vram_addr  ( vram_addr     ),
     .vram_cs    ( vram_cs       ),
-    .obj_addr   ( obj_addr      ),
     .obj_cs     ( obj_cs        ),
 
-    // BRAM read port
+    // Video RAM CPU-side read-back (from generated BRAM ports)
     .mp_dout    ( mp_dout       ),
     .mv_dout    ( mv_dout       ),
     .mo_dout    ( mo_dout       ),
 
-    // Input
+    // I/O
     .joystick1  ( joystick1     ),
     .joystick2  ( joystick2     ),
-    .buttons    ( buttons       ),
-    .coin_input ( coin_input    ),
-    .service    ( service       ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
 
-    // Debug
-    .debug      ( debug[7:0]    )
+    // Sound latch
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       )
 );
 `endif
 
-`ifndef NOSND
+`ifndef NOSOUND
 jtseibu_cop_snd u_snd(
-    .rst        ( rst           ),
-    .clk        ( clk           ),
-    .clk6       ( clk6          ),
-
-    // Sound ROM
-    .snd_addr   ( snd_addr      ),
-    .snd_dout   ( snd_dout      ),
-
-    // Left/Right audio
-    .left       ( left          ),
-    .right      ( right         )
+    .rst        ( rst               ),
+    .clk        ( clk               ),
+    .clk6       ( clk6              ),
+    .snd_latch  ( snd_latch         ),
+    .snd_stb    ( snd_stb           ),
+    .snd_addr   ( snd_addr          ),
+    .snd_cs     ( snd_cs            ),
+    .snd_data   ( snd_data          ),
+    .snd_ok     ( snd_ok            ),
+    .left       ( snd_left          ),
+    .right      ( snd_right         )
 );
+`else
+assign snd_left    = 0;
+assign snd_right   = 0;
+assign snd_cs      = 0;
+assign snd_addr    = 0;
 `endif
 
 endmodule
