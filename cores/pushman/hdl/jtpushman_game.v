@@ -17,10 +17,9 @@
     Date: 29-3-2026 */
 
 module jtpushman_game(
-    `include "jtframe_game_ports.svh"
+    `include "jtframe_game_ports.inc"
     /* jtframe_mem_ports */
 );
-`include "mem_ports.inc"
 
 // Inter-module wires
 wire [ 7:0] snd_latch;

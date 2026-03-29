@@ -71,7 +71,6 @@ assign bus_busy  = rom_cs & ~rom_ok;
 jtframe_m68k cpu(
     .rst(rst),
     .clk(clk),
-    .cen(cpu_cen),
     .cenb(cpu_cenb),
     .A(A),
     .AS_n(ASn),

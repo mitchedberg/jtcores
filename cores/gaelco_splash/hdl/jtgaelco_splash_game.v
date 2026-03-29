@@ -25,8 +25,6 @@ wire [ 7:0] snd_latch;
 wire snd_stb;
 
 // CS signals and RnW from main.v
-wire pal_cs, spr_cs, vram_we;
-wire cpu_rnw;
 
 // BRAM write enables: active when CPU writes and BRAM is selected
 wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;

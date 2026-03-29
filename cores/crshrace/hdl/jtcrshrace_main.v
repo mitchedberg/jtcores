@@ -144,7 +144,6 @@ end
 // 68000 CPU instance
 jtframe_m68k #(.FASTCPU(1)) cpu (
     .clk        ( clk        ),
-    .cen        ( cpu_cen    ),
     .cenb       ( cpu_cenb   ),
     .rst        ( rst        ),
     .dtack_n    ( ~bus_busy  ),

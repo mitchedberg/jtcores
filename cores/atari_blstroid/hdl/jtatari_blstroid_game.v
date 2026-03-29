@@ -2,7 +2,6 @@ module jtatari_blstroid_game(
     `include "jtframe_game_ports.inc"
 );
 
-wire pal_cs, pal_we;
 assign pal_we = pal_cs ? {2{~cpu_rnw}} & ~ram_dsn : 2'b00;
 assign pal_addr = 0;
 assign red = 0;
