@@ -188,7 +188,14 @@ jtframe_m68k u_cpu(
     .DTACKn     ( DTACKn        ),
     .IPLn       ( IPLn          )
 );
-`else
+
+`ifdef SIMULATION
+reg [31:0] diag_cnt;
+always @(posedge clk) if(cpu_cen) begin
+    diag_cnt <= diag_cnt + 1;
+    if(diag_cnt[16:0]==0) $display("NMK16: A=%06X RnW=%b cnt=%0d main=%b ram=%b bgvram=%b pal=%b", {A,1'b0}, RnW, diag_cnt, main_cs, ram_cs, bgvram_cs, pal_cs);
+end
+`endif`else
 initial begin
     main_cs = 0; ram_cs = 0;
     pal_cs = 0; bgvram_cs = 0; fgvram_cs = 0; scroll_cs = 0; io_cs = 0;
