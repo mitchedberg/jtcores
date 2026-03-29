@@ -17,9 +17,17 @@
     Date: 28-3-2026 */
 
 // NMK16 BG tile renderer
-// 16x16 tiles, 4bpp, 512x512 map, scroll
+// 16x16 tiles, 4bpp, 256-col x 32-row tile map (4096x512 pixel virtual space)
 // Palette: 1024 entries, 16-bit custom format (5 bits per channel)
 // GFX ROM: 32-bit SDRAM bus, 17-bit word address
+//
+// Framework constraint: jtframe_scroll_offset has HDW=10 hardcoded, so
+// MAP_HW must be <= 10. We use MAP_HW=10, MAP_VW=9.
+// jtframe_scroll VA=11: {row[4:0], col[5:0]}
+// NMK16 VRAM swizzle: ofst = ((row>>4)<<12)|(row&0x0f)|(col<<4)
+//   With MAP_HW=10: col only 6 bits (0-63), wraps in 64-col window (first pass).
+//   Full 256-col requires MAP_HW=12 which exceeds framework HDW=10 limit.
+//   VRAM swizzle for 11-bit output: {row[4], col[5:0], row[3:0]}
 
 module jtnmk16_video(
     input         rst,
@@ -31,7 +39,7 @@ module jtnmk16_video(
     input   [8:0] vdump,
     input         HS,
     // CPU interface
-    input  [12:1] cpu_addr,
+    input  [13:1] cpu_addr,
     input  [15:0] cpu_dout,
     input         cpu_rnw,
     // VRAM chip selects
@@ -56,25 +64,28 @@ module jtnmk16_video(
 );
 
 // -------------------------------------------------------
-// BG VRAM  — 1024 x 16-bit words (10-bit address)
-// CPU writes; video side reads via swizzled addr from jtframe_scroll
+// BG VRAM  — 8192 x 16-bit words (13-bit address)
+// CPU: full 13-bit address (0x0CC000-0x0CFFFF = 16 KB)
+// Video: jtframe_scroll outputs 11-bit addr (MAP_HW=10, MAP_VW=9)
+//        {row[4:0], col[5:0]} where row=veff[8:4], col=heff[9:4]
+// NMK16 swizzle: {row[4], col[5:0], row[3:0]} = 11 bits
 // -------------------------------------------------------
-wire  [9:0] bg_vram_raw;   // jtframe_scroll output: {row[4:0], col[4:0]}
-// NMK16 swizzle: ofst = {row[4], col[4:0], row[3:0]}
-wire  [9:0] bg_vram_addr = { bg_vram_raw[9], bg_vram_raw[4:0], bg_vram_raw[8:5] };
+wire [10:0] bg_vram_raw;   // jtframe_scroll vram_addr: {row[4:0], col[5:0]}
+// NMK16 swizzle: (row[4]<<10) | (col<<4) | row[3:0]
+wire [10:0] bg_vram_addr = { bg_vram_raw[10], bg_vram_raw[5:0], bg_vram_raw[9:6] };
 
 wire [15:0] bg_vram_q;
 wire        bg_we = bgvram_cs & ~cpu_rnw;
 
-jtframe_dual_ram #(.DW(16),.AW(10)) u_bgvram(
+jtframe_dual_ram #(.DW(16),.AW(13)) u_bgvram(
     .clk0   ( clk           ),
     .data0  ( cpu_dout      ),
-    .addr0  ( cpu_addr[10:1]),
+    .addr0  ( cpu_addr[13:1]),
     .we0    ( bg_we         ),
     .q0     ( bgvram_dout   ),
     .clk1   ( clk           ),
     .data1  ( 16'd0         ),
-    .addr1  ( bg_vram_addr  ),
+    .addr1  ( {2'b0, bg_vram_addr} ),
     .we1    ( 1'b0          ),
     .q1     ( bg_vram_q     )
 );
@@ -103,6 +114,7 @@ jtframe_dual_ram #(.DW(16),.AW(10)) u_palram(
 // Scroll registers — 4 x 16-bit (cpu_addr[2:1] = 00..11)
 // scrollX = {scroll[0][3:0], scroll[1][7:0]}  (12 bits)
 // scrollY = {scroll[2][0],   scroll[3][7:0]}  (9 bits)
+// scrx truncated to MAP_HW=10 bits for jtframe_scroll
 // -------------------------------------------------------
 reg [15:0] scroll_r[0:3];
 always @(posedge clk) begin
@@ -115,8 +127,11 @@ always @(posedge clk) begin
 end
 assign scroll_dout = scroll_r[cpu_addr[2:1]];
 
-wire [8:0] scrx = { scroll_r[0][3:0], scroll_r[1][7:0] }[8:0];
-wire [8:0] scry = { scroll_r[2][0],   scroll_r[3][7:0] };
+// Full 12-bit scroll X: {scroll_r[0][3:0], scroll_r[1][7:0]}
+// MAP_HW=10, so pass lower 10 bits to jtframe_scroll
+wire [11:0] scrx_full = { scroll_r[0][3:0], scroll_r[1][7:0] };
+wire  [9:0] scrx = scrx_full[9:0];
+wire  [8:0] scry = { scroll_r[2][0],   scroll_r[3][7:0] };
 
 // -------------------------------------------------------
 // FG VRAM stub (not rendered in step 1)
@@ -124,9 +139,11 @@ wire [8:0] scry = { scroll_r[2][0],   scroll_r[3][7:0] };
 assign fgvram_dout = 16'hFFFF;
 
 // -------------------------------------------------------
-// jtframe_scroll — SIZE=16, 512x512 map, 12-bit code, 8-bit pixel
-// VA = (MAP_VW-4) + (MAP_HW-4) = 5+5 = 10
+// jtframe_scroll — SIZE=16, MAP_HW=10, MAP_VW=9
+// HDW=10 hardcoded in jtframe_scroll_offset, so MAP_HW <= 10
+// VA = (MAP_HW-4) + (MAP_VW-4) = 6 + 5 = 11
 // VR = CW+5 = 17
+// vram_addr = {veff[8:4], heff[9:4]} = {row[4:0], col[5:0]} = 11 bits
 // -------------------------------------------------------
 wire [16:0] bg_rom_addr;
 wire        bg_rom_cs;
@@ -134,10 +151,10 @@ wire  [7:0] bg_pxl;       // {pal[3:0], pixel[3:0]}
 
 jtframe_scroll #(
     .SIZE   ( 16 ),
-    .VA     ( 10 ),
+    .VA     ( 11 ),
     .CW     ( 12 ),
     .PW     (  8 ),
-    .MAP_HW (  9 ),
+    .MAP_HW ( 10 ),
     .MAP_VW (  9 ),
     .HJUMP  (  1 )
 ) u_bg(

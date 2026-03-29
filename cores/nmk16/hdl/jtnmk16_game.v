@@ -23,7 +23,7 @@ module jtnmk16_game(
 wire [8:0] hdump, vdump;
 
 // CPU interface wires (game.v ↔ main.v ↔ video.v)
-wire [12:1] cpu_addr;
+wire [13:1] cpu_addr;
 wire [15:0] cpu_dout;
 wire        cpu_rnw;
 wire        pal_cs, bgvram_cs, fgvram_cs, scroll_cs, io_cs_unused;

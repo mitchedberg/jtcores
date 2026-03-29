@@ -45,7 +45,7 @@ module jtnmk16_main(
     output reg           io_cs,
 
     // CPU address for video BRAM writes
-    output        [12:1] cpu_addr,
+    output        [13:1] cpu_addr,
     output        [15:0] cpu_dout_o,
 
     // Video RAM read-back (stub: game.v returns 0)
@@ -79,7 +79,7 @@ assign main_addr  = A[17:1];
 assign ram_addr   = A[15:1];
 assign ram_din    = cpu_dout;
 assign cpu_rnw    = RnW;
-assign cpu_addr   = A[12:1];
+assign cpu_addr   = A[13:1];
 assign cpu_dout_o = cpu_dout;
 assign ram_dsn   = {UDSn, LDSn};
 assign ram_we    = ram_cs & ~RnW;
