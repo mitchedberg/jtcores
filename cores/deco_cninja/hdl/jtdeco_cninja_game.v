@@ -62,7 +62,7 @@ jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
 );
 
 jtframe_vtimer #(
-    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
+    .VB_START   ( 9'd239          ),  // 240 visible lines (0-239)
     .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
     .VS_START   ( 9'd231          ),  // vsync pulse
     .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)

@@ -39,11 +39,11 @@ jtframe_frac_cen #(.W(1), .WC(10)) u_pxlcen(
 );
 
 jtframe_vtimer #(
-    .VB_START   ( 9'd224         ),
+    .VB_START   ( 9'd223         ),
     .VB_END     ( 9'd262         ),
     .VS_START   ( 9'd232         ),
     .HCNT_END   ( 9'd383         ),
-    .HB_START   ( 9'd320         ),
+    .HB_START   ( 9'd255         ),
     .HB_END     ( 9'd383         ),
     .HS_START   ( 9'd328         )
 ) u_vtimer(

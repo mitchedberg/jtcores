@@ -54,7 +54,7 @@ jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
 );
 
 jtframe_vtimer #(
-    .VB_START   ( 9'd223          ),
+    .VB_START   ( 9'd239          ),
     .VB_END     ( 9'd261          ),
     .VS_START   ( 9'd231          ),
     .HCNT_END   ( 9'd455          ),

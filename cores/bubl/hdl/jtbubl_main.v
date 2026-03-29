@@ -148,6 +148,48 @@ always @(posedge clk, posedge rst) begin
     end
 end
 
+`ifdef SIMULATION
+reg last_main_rst_n;
+reg [9:0] sim_cycle;   // cycle counter since last reset
+reg [9:0] read_cnt;    // count ROM reads
+reg last_misc_fire;
+reg [4:0] wdog_print_div;  // throttle watchdog prints
+always @(posedge clk) begin
+    last_main_rst_n <= main_rst_n;
+    if(!main_rst_n) begin
+        sim_cycle     <= 0;
+        read_cnt      <= 0;
+        last_misc_fire<= 0;
+        wdog_print_div<= 0;
+    end else begin
+        sim_cycle <= sim_cycle + 1;
+    end
+    if(main_rst_n && !last_main_rst_n)
+        $display("SIM: CPU out of reset (wdog_cnt=%0d) at %t", wdog_cnt, $time);
+    if(!main_rst_n && last_main_rst_n)
+        $display("SIM: CPU into reset (wdog fired) at %t", $time);
+    // trace first 20 ROM reads
+    if(main_rom_cs && main_rom_ok && read_cnt < 20) begin
+        $display("SIM: ROM_READ[%0d] addr=0x%05x data=0x%02x at cycle %0d", read_cnt, main_rom_addr, main_rom_data, sim_cycle);
+        read_cnt <= read_cnt + 1;
+    end
+    // trace any access to 0xFBxx range
+    if(!main_macc_n && main_addr[15:8]==8'hFB)
+        $display("SIM: ADDR_0xFB: addr=0x%04x wrn=%b macc_n=%b cycle=%0d", main_addr, main_wrn, main_macc_n, sim_cycle);
+    // misc_cs
+    if(misc_cs) begin
+        $display("SIM: MISC_CS WRITE! data=0x%02x black_n=%b at cycle %0d", cpu_dout, black_n, sim_cycle);
+        last_misc_fire <= 1;
+    end
+    // watchdog - throttled
+    if(tres_cs) begin
+        wdog_print_div <= wdog_print_div + 1;
+        if(wdog_print_div == 0)
+            $display("SIM: Watchdog (wdog_cnt=%0d cycle=%0d)", wdog_cnt, sim_cycle);
+    end
+end
+`endif
+
 // Main CPU address decoder
 always @(*) begin
     main_macc_n    =  main_mreq_n | ~main_rfsh_n;

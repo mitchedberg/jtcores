@@ -62,13 +62,13 @@ jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
 );
 
 jtframe_vtimer #(
-    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
-    .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
-    .VS_START   ( 9'd231          ),  // vsync pulse
-    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
-    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
-    .HB_END     ( 9'd455          ),  // hblank to end of line
-    .HS_START   ( 9'd360          )   // hsync pulse
+    .VB_START   ( 9'd320          ),  // 224 visible lines (0-223)
+    .VB_END     ( 9'd383          ),  // 262 total lines (0-261)
+    .VS_START   ( 9'd327          ),  // vsync pulse
+    .HCNT_END   ( 9'd399          ),  // 456 total pixels (0-455)
+    .HB_START   ( 9'd240          ),  // 320 visible pixels (0-319)
+    .HB_END     ( 9'd399          ),  // hblank to end of line
+    .HS_START   ( 9'd304          )   // hsync pulse
 ) u_vtimer(
     .clk        ( clk             ),
     .pxl_cen    ( pxl_cen         ),

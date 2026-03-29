@@ -50,13 +50,38 @@ assign blue       = 0;
 assign dip_flip   = 0;
 assign debug_view = 0;
 
-// Pixel clock and timing (stub for now)
-assign pxl_cen    = 0;
-assign pxl2_cen   = 0;
-assign LHBL       = 0;
-assign LVBL       = 0;
-assign HS         = 0;
-assign VS         = 0;
+// Pixel clock: 48 MHz * 44 / 39 = 27.03 MHz
+jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
+    .clk    ( clk                    ),
+    .n      ( 10'd44                 ),
+    .m      ( 10'd39                 ),
+    .cen    ( {pxl_cen, pxl2_cen}   ),
+    .cenb   (                        )
+);
+
+// Vertical game: 240x384
+jtframe_vtimer #(
+    .VB_START   ( 9'd383          ),  // 384 visible lines (0-383)
+    .VB_END     ( 9'd407          ),  // 408 total lines
+    .VS_START   ( 9'd395          ),  // vsync pulse
+    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
+    .HB_START   ( 9'd239          ),  // 240 visible pixels (0-239)
+    .HB_END     ( 9'd455          ),  // hblank to end of line
+    .HS_START   ( 9'd360          )   // hsync pulse
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
+);
 
 // Unused SDRAM buses
 assign tile_cs     = 0;
