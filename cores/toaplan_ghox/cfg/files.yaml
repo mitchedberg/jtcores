@@ -1,0 +1,13 @@
+jtghox:
+  - get:
+    - jtghox_game.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
