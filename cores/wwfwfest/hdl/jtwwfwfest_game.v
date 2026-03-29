@@ -38,12 +38,6 @@ wire vblank, hblank;
 wire [8:0]  vdump;
 wire [8:0]  hdump;
 
-// BRAM port
-wire        pal_we, vram_we, spr_we;
-wire [15:0] pal_dout, vram_dout, spr_dout;
-
-assign rst = ~rst_n;
-
 // Clock dividers
 jtframe_frac_cen #(.WN(4)) u_div(
     .clk    ( clk24        ),

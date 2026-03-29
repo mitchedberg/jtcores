@@ -74,7 +74,8 @@ assign bus_busy  = (rom_cs & ~rom_ok) | (wram_cs & ~ram_ok);
 jtframe_m68k cpu(
     .rst(rst),
     .clk(clk),
-    .cenb(cpu_cenb),
+    .cpu_cen(cpu_cen),
+    .cpu_cenb(cpu_cenb),
     .A(A),
     .AS_n(ASn),
     .UDS_n(UDSn),
@@ -96,12 +97,24 @@ assign DTACKn    = ~bus_busy & ~BUSn;
 assign intn      = LVBL;
 
 // Clock enable (12 MHz from 48 MHz)
-jtframe_68kdtack_cen #(.W(2)) u_cen(
+jtframe_68kdtack_cen #(.W(3)) u_cen(
+    .rst        ( rst       ),
     .clk        ( clk       ),
-    .cen_in     ( 1'b1      ),
     .cpu_cen    ( cpu_cen   ),
     .cpu_cenb   ( cpu_cenb  ),
-    .dtack_n    ( DTACKn    )
+    .bus_cs     ( bus_cs    ),
+    .bus_busy   ( bus_busy  ),
+    .bus_legit  ( 1'b0      ),
+    .bus_ack    ( 1'b0      ),
+    .ASn        ( ASn       ),
+    .DSn        ({UDSn,LDSn}),
+    .num        ( 3'd1      ),  // 12 MHz
+    .den        ( 3'd4      ),
+    .wait2      ( 1'b0      ),
+    .wait3      ( 1'b0      ),
+    .DTACKn     ( DTACKn    ),
+    .fave       (           ),
+    .fworst     (           )
 );
 
 // Address decode

@@ -147,14 +147,15 @@ jtlastduel_snd u_snd(
     .snd_cs     ( snd_cs            ),
     .snd_data   ( snd_data          ),
     .snd_ok     ( snd_ok            ),
-    .snd        ( snd_left          ),
+    .snd_left   ( snd_left          ),
+    .snd_right  ( snd_right         ),
     .sample     ( sample            ),
     .debug_bus  ( debug_bus         )
 );
 assign snd_right = snd_left;
 `else
 assign snd_left    = 0;
-assign snd_right = 0;assign snd_right   = 0;
+assign snd_right   = 0;
 assign sample      = 0;
 assign snd_cs      = 0;
 assign snd_addr    = 0;

@@ -22,7 +22,10 @@
 module jtkonami_gijoe_game(
     input           rst,
     input           clk,
+    input           rst24,
     input           clk24,
+    input           rst96,
+    input           clk96,
     input   [ 1:0]  clk_rgb,
 
     // Joystick

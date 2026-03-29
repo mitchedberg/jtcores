@@ -24,9 +24,9 @@ module jtkonami_xexex_game(
 
 // CPU interface signals (will be connected from main module)
 wire        cpu_rnw;
-wire [1:0]  ram_dsn;
 
 // CS signals from main module
+wire        pal_cs, spr_cs;
 
 // BRAM write enables
 wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;

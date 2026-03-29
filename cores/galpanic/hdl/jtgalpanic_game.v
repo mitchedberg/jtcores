@@ -101,7 +101,7 @@ jtgalpanic_main u_main(
     .main_dout  ( ram_din       ),
     .cpu_rnw    ( cpu_rnw       ),
     .wram_cs    ( ram_cs        ),
-    .ram_dout   ( ram_data      ),
+    .ram_data   ( ram_data      ),
     .ram_ok     ( ram_ok        ),
 
     // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)

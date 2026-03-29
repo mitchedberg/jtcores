@@ -51,7 +51,6 @@ assign dip_flip   = 0;
 jtshadfrce_main u_main(
     .rst        ( rst           ),
     .clk        ( clk           ),
-    .cpu_cen    ( cpu_cen       ),
 
     // Interprocessor comm
     .snd_latch  ( snd_latch     ),

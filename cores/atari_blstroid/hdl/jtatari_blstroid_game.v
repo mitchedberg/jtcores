@@ -2,6 +2,14 @@ module jtatari_blstroid_game(
     `include "jtframe_game_ports.inc"
 );
 
+// Internal signals
+wire pal_cs, cpu_rnw;
+wire [15:0] ram_din, snd2_data, ram_data, main_data;
+wire [ 7:0] snd_data;
+wire        ram_ok, snd_ok, main_ok, snd2_ok;
+wire [15:0] mp_dout;
+wire        sample, mute;
+
 assign pal_we = pal_cs ? {2{~cpu_rnw}} & ~ram_dsn : 2'b00;
 assign pal_addr = 0;
 assign red = 0;
@@ -21,11 +29,7 @@ jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
 jtframe_vtimer #(
     .VB_START   ( 9'd239   ),
     .VB_END     ( 9'd256  ),
-    .VS_START   ( 9'd248   ),
-    .HCNT_END   ( 9'd455             ),
-    .HB_START   ( 9'd335    ),
-    .HB_END     ( 9'd455             ),
-    .HS_START   ( 9'd360             )
+    .VS_START   ( 9'd248   )
 ) u_vtimer(
     .clk        ( clk             ),
     .pxl_cen    ( pxl_cen         ),
@@ -35,10 +39,10 @@ jtframe_vtimer #(
     .H          (                 ),
     .Hinit      (                 ),
     .Vinit      (                 ),
-    .vs         ( vs              ),
-    .hs         ( hs              ),
-    .vb         ( vb              ),
-    .hb         ( hb              )
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
 );
 
 endmodule

@@ -185,11 +185,11 @@ jt03 u_ym2203(
     .psg_C        (                  ),
     .fm_snd       (                  ),
     .psg_snd      (                  ),
-    .snd_right    ( snd_right        ),
-    .snd_left     ( snd_left         ),
-    .snd_sample   ( sample           ),
-    .ch_enable    ( 4'hf             )
+    .snd          ( snd_left         ),
+    .snd_sample   ( sample           )
 );
+
+assign snd_right = snd_left;  // YM2203 is mono
 
 `else
 // NOSOUND stub

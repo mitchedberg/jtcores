@@ -19,118 +19,45 @@
 
 `default_nettype none
 
+`default_nettype none
+
 module jtatari_klax_game #(
     parameter CORENAME="JTATARI_KLAX",
     parameter CLK96=1
 ) (
-    input   wire        rst,
-    input   wire        clk,
-    input   wire        clk24,
-    input   wire        clk48,
-    input   wire        clk96,
-    output  wire        pxl_cen,
-    output  wire        pxl2_cen,
-
-    // joystick
-    input   wire [15:0] joystick1,
-    input   wire [15:0] joystick2,
-    input   wire [15:0] joystick3,
-    input   wire [15:0] joystick4,
-    input   wire [ 3:0] start_button,
-    input   wire [ 3:0] coin_input,
-    input   wire [ 7:0] dip_switches,
-
-    // SDRAM interface
-    output  wire        sdram_req,
-    input   wire        sdram_ack,
-    output  wire [22:0] sdram_addr,
-    output  wire [ 1:0] sdram_be,
-    output  wire        sdram_we,
-    input   wire [15:0] sdram_data,
-    input   wire        sdram_valid,
-    output  wire        sdram_ds,      // data strobe
-
-    // ROM access
-    input   wire [15:0] prog_rom_data,
-    input   wire [14:0] prog_addr,
-    input   wire        prog_cs,
-    input   wire        prog_we,
-
-    // Palette
-    output  wire [15:0] pal_addr,
-    output  wire [ 7:0] pal_dout,
-    output  wire        pal_we,
-    input   wire [ 7:0] pal_din,
-
-    // VRAM
-    output  wire [11:0] vram0_addr,
-    output  wire [15:0] vram0_dout,
-    output  wire        vram0_we,
-    input   wire [15:0] vram0_din,
-
-    output  wire [11:0] vram1_addr,
-    output  wire [15:0] vram1_dout,
-    output  wire        vram1_we,
-    input   wire [15:0] vram1_din,
-
-    // Sprite RAM
-    output  wire [10:0] spr_addr,
-    output  wire [15:0] spr_dout,
-    output  wire        spr_we,
-    input   wire [15:0] spr_din,
-
-    // Main RAM
-    output  wire [12:0] ram_addr,
-    output  wire [15:0] ram_dout,
-    output  wire [ 1:0] ram_we,
-    input   wire [15:0] ram_din,
-
-    // Video
-    output  wire        blk_n,
-    output  wire        hs,
-    output  wire        vs,
-    output  wire [3:0]  red,
-    output  wire [3:0]  green,
-    output  wire [3:0]  blue,
-
-    // Audio
-    output  wire        snd,
-    output  wire [ 9:0] snd_addr,
-    output  wire        snd_cs
+    `include "jtframe_game_ports.inc"
 );
 
-// Placeholder: connect inputs to outputs to prevent linting errors
+// Stub wires for missing memory ports
+wire [15:0] ram_dout, vram0_dout, vram1_dout, spr_dout, pal_dout;
+wire [12:0] ram_addr;
+wire [11:0] vram0_addr;
+wire [11:0] vram1_addr;
+wire [10:0] spr_addr;
+wire        ram_we, vram0_we, vram1_we, spr_we, pal_we;
+wire [15:0] ram_din, mp_dout;
+wire        ram_cs, ram_ok;
+wire [ 1:0] ram_dsn;
+wire [15:0] ram_data;
+wire [ 7:0] snd2_data;
+wire        snd2_cs, snd2_ok;
+wire [11:0] snd2_addr;
+wire [14:0] snd_addr;
+wire [ 7:0] snd_data;
+wire        snd_cs, snd_ok;
+
+// Placeholder: connect outputs to 0 to prevent linting errors
 assign pxl_cen      = 1'b0;
 assign pxl2_cen     = 1'b0;
-assign sdram_req    = 1'b0;
-assign sdram_addr   = 23'h0;
-assign sdram_be     = 2'b0;
-assign sdram_we     = 1'b0;
-assign sdram_ds     = 1'b0;
-assign pal_addr     = 16'h0;
-assign pal_dout     = 8'h0;
-assign pal_we       = 1'b0;
-assign vram0_addr   = 12'h0;
-assign vram0_dout   = 16'h0;
-assign vram0_we     = 1'b0;
-assign vram1_addr   = 12'h0;
-assign vram1_dout   = 16'h0;
-assign vram1_we     = 1'b0;
-assign spr_addr     = 11'h0;
-assign spr_dout     = 16'h0;
-assign spr_we       = 1'b0;
-assign ram_addr     = 13'h0;
-assign ram_dout     = 16'h0;
-assign ram_we       = 2'b0;
-assign blk_n        = 1'b0;
-assign hs           = 1'b0;
-assign vs           = 1'b0;
 assign red          = 4'h0;
 assign green        = 4'h0;
 assign blue         = 4'h0;
+`ifdef JTFRAME_STEREO
 assign snd_left     = 16'h0;
 assign snd_right    = 16'h0;
-assign snd_addr     = 10'h0;
-assign snd_cs       = 1'b0;
+`else
+assign snd           = 1'b0;
+`endif
+assign sample       = 1'b0;
 
 endmodule

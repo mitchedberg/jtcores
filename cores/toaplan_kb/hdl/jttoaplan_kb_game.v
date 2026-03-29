@@ -26,14 +26,6 @@ reg  [ 7:0] debug_mux;
 wire [ 7:0] dipsw_a, dipsw_b;
 wire        main_flag, main_stb, snd_stb;
 
-wire [15:0] main_addr;
-wire [ 7:0] main_din, main_dout;
-wire        main_rnw, main_cs;
-
-wire [14:0] snd_addr;
-wire [ 7:0] snd_din, snd_dout;
-wire        snd_rnw, snd_cs;
-
 wire [ 7:0] snd_latch;
 wire        snd_flag;
 

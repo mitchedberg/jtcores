@@ -112,6 +112,27 @@ always @(posedge clk) begin
 end
 assign intn = intn_r;
 
+// Clock enable generator (12 MHz from 48 MHz)
+jtframe_68kdtack_cen #(.W(3)) u_cen(
+    .rst        ( rst       ),
+    .clk        ( clk       ),
+    .cpu_cen    ( cpu_cen   ),
+    .cpu_cenb   ( cpu_cenb  ),
+    .bus_cs     ( bus_cs    ),
+    .bus_busy   ( bus_busy  ),
+    .bus_legit  ( 1'b0      ),
+    .bus_ack    ( 1'b0      ),
+    .ASn        ( ASn       ),
+    .DSn        ({UDSn,LDSn}),
+    .num        ( 3'd1      ),  // 12 MHz
+    .den        ( 3'd4      ),
+    .wait2      ( 1'b0      ),
+    .wait3      ( 1'b0      ),
+    .DTACKn     ( DTACKn    ),
+    .fave       (           ),
+    .fworst     (           )
+);
+
 // Sound latch write
 always @(posedge clk) begin
     if (rst) begin
@@ -129,8 +150,8 @@ end
 // 68000 CPU instance
 jtframe_m68k #(.FASTCPU(1)) cpu (
     .clk        ( clk        ),
-    .cen        ( cpu_cen    ),
-    .cenb       ( cpu_cenb   ),
+    .cpu_cen    ( cpu_cen    ),
+    .cpu_cenb   ( cpu_cenb   ),
     .rst        ( rst        ),
     .dtack_n    ( ~bus_busy  ),
     .fc         ( FC         ),

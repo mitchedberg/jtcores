@@ -91,7 +91,7 @@ assign obj_cs      = 0;
 assign obj_addr    = 0;
 
 `ifndef NOMAIN
-jtbishi_main u_main(
+jtkonami_bishi_main u_main(
     .rst        ( rst           ),
     .clk        ( clk           ),
     .LVBL       ( LVBL          ),
@@ -121,7 +121,7 @@ jtbishi_main u_main(
 `endif
 
 `ifndef NOSOUND
-jtbishi_snd u_snd(
+jtkonami_bishi_snd u_snd(
     .rst        ( rst               ),
     .clk        ( clk               ),
     .snd_latch  ( snd_latch         ),

@@ -145,13 +145,13 @@ jt51 u_ym2151(
     .clk      ( clk          ),
     .cen      ( cen4         ),
     .din      ( cpu_dout     ),
-    .addr     ( A[0]         ),
+    .a0       ( A[0]         ),
     .cs_n     ( ~ym_cs       ),
     .wr_n     ( wr_n         ),
     .dout     ( ym_dout      ),
     .irq_n    ( ym_irq_n     ),
-    .snd_left ( snd_left     ),
-    .snd_right( snd_right    ),
+    .left     ( snd_left     ),
+    .right    ( snd_right    ),
     .sample   ( sample       )
 );
 

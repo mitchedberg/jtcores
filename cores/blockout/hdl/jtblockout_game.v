@@ -129,7 +129,8 @@ jtblockout_snd u_snd(
     .snd_cs     ( snd_cs            ),
     .snd_data   ( snd_data          ),
     .snd_ok     ( snd_ok            ),
-    .snd        ( snd_left          ),
+    .snd_left   ( snd_left          ),
+    .snd_right  ( snd_right         ),
     .sample     ( sample            ),
     .debug_bus  ( debug_bus         )
 );

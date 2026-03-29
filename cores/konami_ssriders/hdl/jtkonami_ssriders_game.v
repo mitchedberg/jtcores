@@ -29,7 +29,7 @@ wire spr_cs, pal_cs, vram0_cs, vram1_cs, vregs_cs;
 wire cpu_rnw;
 
 // BRAM write enables: active when CPU writes and BRAM is selected
-wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
+wire [1:0] bram_we = {2{~cpu_rnw}};
 assign spr_we   = spr_cs   ? bram_we : 2'b00;
 assign pal_we   = pal_cs   ? bram_we : 2'b00;
 assign vram0_we = vram0_cs ? bram_we : 2'b00;
