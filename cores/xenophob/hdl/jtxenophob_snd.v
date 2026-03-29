@@ -14,7 +14,7 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 2026-03-28 */
+    Date: 28-3-2026 */
 
 // Xenophobe 68000 DAC sound module
 // 68000 @ 12MHz, clock enable generated from 48 MHz system clock
@@ -67,10 +67,12 @@ assign snd_addr  = 17'h0;
 assign snd_cs    = 1'b0;
 
 `else
-// NOSOUND mode
-assign snd_left  = 16'h0000;
-assign snd_right = 16'h0000;
-assign sample    = 1'b0;
+// NOSOUND stub — all outputs driven to safe defaults
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
+assign sample      = 1'b0;
+assign snd_cs      = 1'b0;
+assign snd_addr    = 17'd0;
 `endif
 
 endmodule

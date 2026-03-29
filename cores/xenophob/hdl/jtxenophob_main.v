@@ -40,7 +40,7 @@ module jtxenophob_main(
     // CPU bus (for video BRAMs in game.v)
     output reg           pal_cs,
 
-    // Video RAM read-back (stub: game.v returns 0)
+    // Video RAM read-back (from generated BRAM ports)
     input         [15:0] mp_dout,    // CPU-side palette read
 
     // I/O
@@ -83,24 +83,23 @@ assign bus_busy  = (rom_cs & ~rom_ok) | (wram_cs & ~ram_ok);
 // Address decode — combinational
 always @* begin
     rom_cs      = !ASn  && A[23:20] == 4'h0;
-    pal_cs      = !BUSn && A[23:13] == 11'b0100_0000_000;
-    io_cs       = !BUSn && A[23:4]  == 20'hC0000;
-    sndlatch_cs = !BUSn && A[23:2]  == 22'h300004 && !RnW;
     wram_cs     = !ASn  && A[23:17] == 7'h10;
+    pal_cs      = !BUSn && A[23:16] == 8'h40;
+    io_cs       = !BUSn && A[23:16] == 8'h50;
+    sndlatch_cs = !BUSn && A[23:2]  == 22'h300004 && !RnW;
 end
 
-// CPU data read-back (stub: only palette for now)
-always @* begin
-    cpu_din = 16'h0000;
-    if (pal_cs)
-        cpu_din = mp_dout;
-    else if (rom_cs)
-        cpu_din = rom_data;
-    else if (wram_cs)
-        cpu_din = ram_dout;
+// CPU data mux (registered, matching psikyo pattern)
+always @(posedge clk) begin
+    case (1'b1)
+        rom_cs:   cpu_din <= rom_data;
+        wram_cs:  cpu_din <= ram_dout;
+        pal_cs:   cpu_din <= mp_dout;
+        default:  cpu_din <= 16'hffff;
+    endcase
 end
 
-// Interrupt control (stub)
+// Interrupt control
 reg intn_r;
 always @(posedge clk) begin
     if (rst)
@@ -111,6 +110,20 @@ always @(posedge clk) begin
         intn_r <= 1'b1;
 end
 assign intn = intn_r;
+
+// Sound latch write
+always @(posedge clk) begin
+    if (rst) begin
+        snd_latch <= 8'h00;
+        snd_stb   <= 1'b0;
+    end else begin
+        snd_stb <= 1'b0;
+        if (sndlatch_cs) begin
+            snd_latch <= cpu_dout[7:0];
+            snd_stb   <= 1'b1;
+        end
+    end
+end
 
 // Clock enable generator (12 MHz from 48 MHz)
 jtframe_68kdtack_cen #(.W(3)) u_cen(
@@ -133,27 +146,13 @@ jtframe_68kdtack_cen #(.W(3)) u_cen(
     .fworst     (           )
 );
 
-// Sound latch write
-always @(posedge clk) begin
-    if (rst) begin
-        snd_latch <= 8'h00;
-        snd_stb   <= 1'b0;
-    end else begin
-        snd_stb <= 1'b0;
-        if (sndlatch_cs) begin
-            snd_latch <= cpu_dout[7:0];
-            snd_stb   <= 1'b1;
-        end
-    end
-end
-
 // 68000 CPU instance
 jtframe_m68k #(.FASTCPU(1)) cpu (
     .clk        ( clk        ),
     .cpu_cen    ( cpu_cen    ),
     .cpu_cenb   ( cpu_cenb   ),
     .rst        ( rst        ),
-    .DTACKn    ( ~bus_busy  ),
+    .DTACKn     ( ~bus_busy  ),
     .fc         ( FC         ),
     .a          ( A          ),
     .as_n       ( ASn        ),
@@ -173,5 +172,18 @@ jtframe_m68k #(.FASTCPU(1)) cpu (
     .dout       ( cpu_dout   )
 );
 
+`else
+assign main_addr = 19'h0;
+assign ram_addr  = 16'h0;
+assign main_dout = 16'h0;
+assign cpu_rnw   = 1'b1;
+assign dsn       = 2'b11;
+assign ram_we    = 1'b0;
+assign rom_cs    = 1'b0;
+assign wram_cs   = 1'b0;
+assign pal_cs    = 1'b0;
+assign snd_latch = 8'h0;
+assign snd_stb   = 1'b0;
 `endif
+
 endmodule

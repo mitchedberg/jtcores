@@ -14,7 +14,7 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 28-3-2026 */
+    Date: 29-3-2026 */
 
 module jtgalpanic_game(
     `include "jtframe_game_ports.inc"
@@ -101,7 +101,7 @@ jtgalpanic_main u_main(
     .main_dout  ( ram_din       ),
     .cpu_rnw    ( cpu_rnw       ),
     .wram_cs    ( ram_cs        ),
-    .ram_data   ( ram_data      ),
+    .ram_dout   ( ram_data      ),
     .ram_ok     ( ram_ok        ),
 
     // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)

@@ -16,8 +16,8 @@
     Version: 1.0
     Date: 2026-03-28 */
 
-// Toaplan Ghox Z80 + YM2151 + OKI ADPCM sound module
-// Z80 @ 4 MHz, clock enable generated from 48 MHz system clock
+// Toaplan Ghox sound module (NOSOUND stub)
+// Z80 @ 4 MHz, YM2151 + OKI M6295
 
 module jttoaplan_ghox_snd(
     input             rst,
@@ -45,7 +45,7 @@ module jttoaplan_ghox_snd(
 
 `ifndef NOSOUND
 
-// Clock enable: 48 MHz / 12 = 4 MHz
+// --- Clock enable: 48 MHz / 12 = 4 MHz ---
 reg [3:0] cen_cnt;
 reg       cen4;
 
@@ -64,51 +64,48 @@ always @(posedge clk) begin
     end
 end
 
-// CPU signals
+// --- CPU signals ---
 wire [15:0] A;
 wire        mreq_n, iorq_n, rd_n, wr_n, rfsh_n;
 wire [ 7:0] cpu_dout, ram_dout;
 reg  [ 7:0] cpu_din;
 
-// Chip-select signals
+// --- Chip-select signals ---
 reg  macc_n;
 reg  rom_cs, ram_cs;
 reg  ym_cs, latch_rd, latch_ack, oki_cs;
 
-// NMI flag
+// --- NMI flag ---
 reg  nmi_n;
 
-// YM2151 signals
+// --- YM2151 internal signals ---
 wire [ 7:0] ym_dout;
 wire        ym_irq_n;
 
-// OKI M6295 signals
-wire [ 7:0] oki_dout;
-
-// Memory decode
+// --- Memory decode (combinational) ---
 always @(*) begin
     macc_n  =  mreq_n | ~rfsh_n;
     rom_cs  = !macc_n && !A[15];
-    ram_cs  = !macc_n &&  A[15] && A[14:9] == 6'b000000;
+    ram_cs  = !macc_n &&  A[15] && A[14:9] == 6'b000000; // 0x8000-0x81FF
 end
 
-// I/O decode
+// --- I/O decode ---
 always @(*) begin
-    ym_cs     = !iorq_n && (!rd_n || !wr_n) && A[7:2] == 6'b000001;
+    ym_cs     = !iorq_n && (!rd_n || !wr_n) && A[7:2] == 6'b000001; // 0x04-0x07
     latch_rd  = !iorq_n && !rd_n  && A[7:0] == 8'h08;
     latch_ack = !iorq_n && !wr_n  && A[7:0] == 8'h0C;
-    oki_cs    = !iorq_n && (!rd_n || !wr_n) && A[7:2] == 6'b000000;
+    oki_cs    = !iorq_n && (!rd_n || !wr_n) && A[7:2] == 6'b000000; // 0x00-0x03
 end
 
-// ROM address
-assign snd_addr = rom_cs ? A[14:0] : 15'd0;
+// --- ROM address ---
+assign snd_addr = rom_cs  ? A[14:0] : 15'd0;
 assign snd_cs   = rom_cs;
 
-// OKI ADPCM ROM
-assign snd2_addr = oki_cs ? {A[7:0]} : 12'd0;  // Stub: simplified address mapping
+// --- OKI ADPCM ROM wiring ---
+assign snd2_addr = oki_cs ? A[11:0] : 12'd0;
 assign snd2_cs   = oki_cs & !rd_n;
 
-// NMI: set on snd_stb, clear on latch_ack
+// --- NMI: set on snd_stb, clear on latch_ack ---
 always @(posedge clk) begin
     if (rst)
         nmi_n <= 1'b1;
@@ -118,19 +115,19 @@ always @(posedge clk) begin
         nmi_n <= 1'b1;
 end
 
-// CPU data mux
+// --- CPU data mux (registered, matching psikyo pattern) ---
 always @(posedge clk) begin
     case (1'b1)
         rom_cs:           cpu_din <= snd_data;
         ym_cs:            cpu_din <= ym_dout;
-        oki_cs:           cpu_din <= oki_dout;
+        oki_cs:           cpu_din <= snd2_data;
         latch_rd:         cpu_din <= snd_latch;
         ram_cs:           cpu_din <= ram_dout;
         default:          cpu_din <= 8'hff;
     endcase
 end
 
-// Z80 CPU
+// --- Z80 CPU ---
 jtframe_sysz80 #(.RAM_AW(9), .RECOVERY(0)) u_cpu(
     .rst_n   ( ~rst      ),
     .clk     ( clk       ),
@@ -156,7 +153,7 @@ jtframe_sysz80 #(.RAM_AW(9), .RECOVERY(0)) u_cpu(
     .rom_ok  ( snd_ok    )
 );
 
-// YM2151 (OPM variant)
+// --- YM2151 ---
 jt12 u_ym2151(
     .rst          ( rst              ),
     .clk          ( clk              ),
@@ -178,11 +175,8 @@ jt12 u_ym2151(
     .ch_enable    ( 8'hff            )
 );
 
-// OKI M6295 (stub - basic wiring)
-assign oki_dout = snd2_data;
-
 `else
-// NOSOUND stub
+// NOSOUND stub — all outputs driven to safe defaults
 assign snd_left    = 16'd0;
 assign snd_right   = 16'd0;
 assign sample      = 1'b0;

@@ -40,7 +40,7 @@ module jttoaplan_ghox_main(
     // CPU bus (for video BRAMs in game.v)
     output reg           pal_cs,
 
-    // Video RAM read-back
+    // Video RAM read-back (stub: game.v returns 0)
     input         [15:0] mp_dout,
 
     // I/O
@@ -64,6 +64,10 @@ reg  [15:0] cpu_din;
 reg         io_cs, sndlatch_cs, clr_int;
 wire        intn, bus_cs, bus_busy;
 
+`ifdef SIMULATION
+wire [23:0] A_full = {A, 1'b0};
+`endif
+
 assign main_addr = A[19:1];
 assign ram_addr  = A[16:1];
 assign main_dout = cpu_dout;
@@ -71,19 +75,19 @@ assign cpu_rnw   = RnW;
 assign dsn       = {UDSn, LDSn};
 assign ram_we    = wram_cs & ~RnW;
 assign BUSn      = ASn | (LDSn & UDSn);
-assign IPLn      = intn ? 3'b111 : 3'b011;
+assign IPLn      = intn ? 3'b111 : 3'b011;   // level 4 when active
 assign VPAn      = ~(!ASn && FC == 3'b111);
 assign bus_cs    = rom_cs | wram_cs;
 assign bus_busy  = (rom_cs & ~rom_ok) | (wram_cs & ~ram_ok);
 
-// Address decode
+// Address decode — combinational
 always @* begin
     rom_cs      = !ASn  && A[23:20] == 4'h0;
     pal_cs      = !BUSn && A[23:10] == 14'b00_0100_0000_0000;
     io_cs       = !BUSn && A[23:4]  == 20'hC0000;
     sndlatch_cs = !BUSn && A[23:2]  == 22'h300004 && !RnW;
     wram_cs     = !BUSn && A[23:17] == 7'b1111_111;
-    clr_int     = io_cs && !RnW;
+    clr_int     = io_cs && !RnW;   // any IO write clears interrupt
 end
 
 // Sound latch capture
@@ -110,7 +114,7 @@ always @(posedge clk) begin
                           16'hFFFF;
 end
 
-// VBLANK interrupt
+// VBLANK falling-edge interrupt
 jtframe_edge #(.QSET(0)) u_vbl(
     .rst    ( rst      ),
     .clk    ( clk      ),
@@ -119,7 +123,7 @@ jtframe_edge #(.QSET(0)) u_vbl(
     .q      ( intn     )
 );
 
-// 68000 @ 12.5MHz: 48MHz / 3.84 ≈ 48MHz / 4 for stub simplicity
+// 16 MHz clock enable from 48 MHz: num=1, den=3
 jtframe_68kdtack_cen #(.W(5)) u_dtack(
     .rst        ( rst           ),
     .clk        ( clk           ),
@@ -132,7 +136,7 @@ jtframe_68kdtack_cen #(.W(5)) u_dtack(
     .ASn        ( ASn           ),
     .DSn        ( {UDSn, LDSn}  ),
     .num        ( 4'd1          ),
-    .den        ( 5'd4          ),
+    .den        ( 5'd3          ),
     .DTACKn     ( DTACKn        ),
     .wait2      ( 1'b0          ),
     .wait3      ( 1'b0          ),
@@ -146,20 +150,24 @@ jtframe_m68k u_cpu(
     .RESETn     (               ),
     .cpu_cen    ( cpu_cen       ),
     .cpu_cenb   ( cpu_cenb      ),
+
     .eab        ( A             ),
     .iEdb       ( cpu_din       ),
     .oEdb       ( cpu_dout      ),
+
     .eRWn       ( RnW           ),
     .LDSn       ( LDSn          ),
     .UDSn       ( UDSn          ),
     .ASn        ( ASn           ),
     .VPAn       ( VPAn          ),
     .FC         ( FC            ),
+
     .BERRn      ( 1'b1          ),
     .HALTn      ( dip_pause     ),
     .BRn        ( 1'b1          ),
     .BGACKn     ( 1'b1          ),
     .BGn        (               ),
+
     .DTACKn     ( DTACKn        ),
     .IPLn       ( IPLn          )
 );
@@ -174,5 +182,4 @@ assign main_addr = 0; assign ram_addr = 0;
 assign main_dout = 0; assign dsn = 0; assign ram_we = 0;
 assign cpu_rnw = 1;
 `endif
-
 endmodule

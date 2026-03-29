@@ -14,10 +14,9 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 2026-03-28 */
+    Date: 29-3-2026 */
 
-// F1 Grand Prix Z80 + YM2610 sound module
-
+// F1 Grand Prix sound module stub
 module jtf1gp_snd(
     input             rst,
     input             clk,
@@ -38,117 +37,19 @@ module jtf1gp_snd(
 );
 
 `ifndef NOSOUND
-// --- Clock enable: 48 MHz / 6 = 8 MHz ---
-reg [2:0] cen_cnt;
-reg       cen8;
-
-always @(posedge clk) begin
-    if (rst) begin
-        cen_cnt <= 0;
-        cen8    <= 0;
-    end else begin
-        cen8 <= 0;
-        if (cen_cnt == 3'd5) begin
-            cen_cnt <= 0;
-            cen8    <= 1;
-        end else begin
-            cen_cnt <= cen_cnt + 3'd1;
-        end
-    end
-end
-
-// --- CPU signals ---
-wire [15:0] A;
-wire        mreq_n, iorq_n, rd_n, wr_n, rfsh_n;
-wire [ 7:0] cpu_dout, ram_dout;
-reg  [ 7:0] cpu_din;
-
-// --- Chip-select signals ---
-reg  macc_n;
-reg  rom_cs, ram_cs, ym2610_cs;
-reg  latch_rd, latch_ack;
-
-// --- NMI flag ---
-reg  nmi_n;
-
-// --- YM2610 internal signals ---
-wire [ 7:0] ym2610_dout;
-wire        ym2610_irq_n;
-
-// --- Memory decode ---
-always @(*) begin
-    macc_n      =  mreq_n | ~rfsh_n;
-    rom_cs      = ~mreq_n && !A[15] && !rfsh_n;
-    ram_cs      = ~mreq_n && A[15] && !rfsh_n;
-    ym2610_cs   = ~iorq_n && !rfsh_n && A[7:0] >= 8'h00 && A[7:0] < 8'h04;
-    latch_rd    = ~iorq_n && !rd_n && A[7:0] == 8'h04;
-end
-
-// --- Z80 CPU instantiation ---
-jtframe_z80 cpu(
-    .rst_n(~rst),
-    .clk(clk),
-    .cen(cen8),
-    .wait_n(~(rom_cs & ~snd_ok)),
-    .int_n(nmi_n),
-    .nmi_n(1'b1),
-    .busrq_n(1'b1),
-    .A(A),
-    .mreq_n(mreq_n),
-    .iorq_n(iorq_n),
-    .rd_n(rd_n),
-    .wr_n(wr_n),
-    .rfsh_n(rfsh_n),
-    .halt_n(),
-    .busak_n(),
-    .dout(cpu_dout),
-    .din(cpu_din)
-);
-
-// --- CPU data input mux ---
-always @* begin
-    if ( rom_cs )
-        cpu_din = snd_data;
-    else if ( ram_cs )
-        cpu_din = ram_dout;
-    else if ( ym2610_cs )
-        cpu_din = ym2610_dout;
-    else if ( latch_rd )
-        cpu_din = snd_latch;
-    else
-        cpu_din = 8'hFF;
-end
-
-// --- Sound latch handling ---
-always @(posedge clk) begin
-    if (rst) begin
-        latch_ack <= 1'b0;
-        nmi_n <= 1'b1;
-    end else begin
-        if (snd_stb)
-            latch_ack <= 1'b1;
-        else if (latch_rd)
-            latch_ack <= 1'b0;
-        
-        nmi_n <= ~latch_ack;
-    end
-end
-
-// --- Memory connections ---
-assign snd_addr    = A[14:0];
-assign snd_cs      = rom_cs;
-
-// --- Dummy audio output ---
+// Placeholder for future sound implementation
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
 assign sample      = 1'b0;
-assign snd_left    = 16'h0000;
-assign snd_right   = 16'h0000;
-
+assign snd_cs      = 1'b0;
+assign snd_addr    = 15'd0;
 `else
-assign snd_addr = 15'h0;
-assign snd_cs = 1'b0;
-assign sample = 1'b0;
-assign snd_left = 16'h0;
-assign snd_right = 16'h0;
+// NOSOUND stub — all outputs driven to safe defaults
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
+assign sample      = 1'b0;
+assign snd_cs      = 1'b0;
+assign snd_addr    = 15'd0;
 `endif
 
 endmodule

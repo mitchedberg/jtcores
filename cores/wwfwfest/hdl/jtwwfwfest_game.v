@@ -1,124 +1,154 @@
-/*  This file is part of JT_CORES.
-    JT_CORES program is free software: you can redistribute it and/or modify
+/*  This file is part of JTCORES.
+    JTCORES program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    JT_CORES program is distributed in the hope that it will be useful,
+    JTCORES program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with JT_CORES.  If not, see <http://www.gnu.org/licenses/>.
+    along with JTCORES.  If not, see <http://www.gnu.org/licenses/>.
 
-    Author: jotego
+    Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 27-March-2026
-
-*/
+    Date: 28-3-2026 */
 
 module jtwwfwfest_game(
     `include "jtframe_game_ports.inc"
 );
 
-localparam CHARW=8, CHARH=8;
+// Inter-module wires
+wire [ 7:0] snd_latch;
+wire snd_stb;
 
-// Clocks
-wire clk_cpu, clk_snd;
-wire clk12 = clk24 >> 1;
+// CS signals and RnW from main.v
+wire pal_cs, vram_cs, spr_cs;
+wire cpu_rnw;
 
-// From CPU
-wire [15:0] cpu_dout;
-wire [23:0] cpu_addr;
-wire        cpu_we;
+// BRAM write enables: active when CPU writes and BRAM is selected
+wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
+assign spr_we   = spr_cs   ? bram_we : 2'b00;
+assign pal_we   = pal_cs   ? bram_we : 2'b00;
+assign vram_we  = vram_cs  ? bram_we : 2'b00;
 
-// Video
-wire vblank, hblank;
-wire [8:0]  vdump;
-wire [8:0]  hdump;
+// Video-side BRAM addresses (no video module yet — stub to zero)
+assign spr_addr   = 0;
+assign pal_addr   = 0;
+assign vram_addr  = 0;
 
-// Clock dividers
-jtframe_frac_cen #(.WN(4)) u_div(
-    .clk    ( clk24        ),
-    .cen    ( 1'b1         ),
-    .div    ( 4'd1         ),  // 12 MHz for 68000
-    .cen_out( clk_cpu      )
+// Stub assignments — modules not yet instantiated
+assign red        = 0;
+assign green      = 0;
+assign blue       = 0;
+assign dip_flip   = 0;
+assign debug_view = 0;
+
+// Pixel clock: 24 MHz / 2 = 12 MHz (pxl_cen)
+jtframe_frac_cen #(.W(1), .WC(2)) u_pxlcen(
+    .clk    ( clk        ),
+    .n      ( 2'd1       ),
+    .m      ( 2'd2       ),
+    .cen    ( pxl_cen    ),
+    .cenb   (            )
 );
 
-jtframe_frac_cen #(.WN(4)) u_div_snd(
-    .clk    ( clk24        ),
-    .cen    ( 1'b1         ),
-    .div    ( 4'd2         ),  // 8 MHz for Z80
-    .cen_out( clk_snd      )
+jtframe_vtimer #(
+    .VB_START   ( 9'd239          ),  // 240 visible lines (0-239)
+    .VB_END     ( 9'd262          ),  // 263 total lines (0-262)
+    .VS_START   ( 9'd247          ),  // vsync pulse
+    .HCNT_END   ( 9'd383          ),  // 384 total pixels (0-383)
+    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
+    .HB_END     ( 9'd383          ),  // hblank to end of line
+    .HS_START   ( 9'd344          )   // hsync pulse
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
 );
 
-// Video timing
-jtframe_vtimer #(.VDUMP_LEN(10),.HDUMP_LEN(10)) u_vtimer(
-    .clk       ( clk24       ),
-    .pxl_cen   ( pxl_cen     ),
-    .vdump     ( vdump       ),
-    .hdump     ( hdump       ),
-    .vblank    ( vblank      ),
-    .hblank    ( hblank      ),
-    .vs        ( vs          ),
-    .hs        ( hs          ),
-    .vrender   ( vrender     ),
-    .hrender   ( hrender     )
-);
+// Unused SDRAM buses
+assign tile_cs     = 0;
+assign tile_addr   = 0;
+assign obj_cs      = 0;
+assign obj_addr    = 0;
 
-// CPU module
+`ifndef NOMAIN
 jtwwfwfest_main u_main(
-    .clk        ( clk24        ),
-    .clk_cpu    ( clk_cpu      ),
-    .rst        ( rst          ),
-    .cpu_addr   ( cpu_addr     ),
-    .cpu_dout   ( cpu_dout     ),
-    .cpu_we     ( cpu_we       ),
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .LVBL       ( LVBL          ),
 
-    .pal_we     ( pal_we       ),
-    .vram_we    ( vram_we      ),
-    .spr_we     ( spr_we       ),
-    .pal_dout   ( pal_dout     ),
-    .vram_dout  ( vram_dout    ),
-    .spr_dout   ( spr_dout     ),
+    // SDRAM ROM
+    .main_addr  ( main_addr     ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
 
-    .vblank     ( vblank       ),
-    .vdump      ( vdump        ),
+    // SDRAM Work RAM
+    .ram_addr   ( ram_addr      ),
+    .ram_we     ( ram_we        ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
+    .ram_ok     ( ram_ok        ),
 
-    .sdram_req  ( sdram_req    ),
-    .sdram_ack  ( sdram_ack    ),
-    .sdram_addr ( sdram_addr   ),
-    .sdram_dout ( sdram_dout   ),
+    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
+    .spr_cs     ( spr_cs        ),
+    .pal_cs     ( pal_cs        ),
+    .vram_cs    ( vram_cs       ),
 
-    .snd_latch  ( snd_latch    ),
+    // Video RAM CPU-side read-back (from generated BRAM ports)
+    .ms_dout    ( ms_dout       ),
+    .mp_dout    ( mp_dout       ),
+    .mv_dout    ( mv_dout       ),
 
-    .input_data ( input_data   ),
-    .dipsw      ( dipsw        )
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
+
+    // Sound latch
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       )
 );
+`endif
 
-// Sound module
+`ifndef NOSOUND
 jtwwfwfest_snd u_snd(
-    .clk        ( clk24        ),
-    .clk_snd    ( clk_snd      ),
-    .rst        ( rst          ),
-
-    .snd_latch  ( snd_latch    ),
-
-    .sdram_req  ( sdram_req    ),
-    .sdram_ack  ( sdram_ack    ),
-    .sdram_addr ( sdram_addr   ),
-    .sdram_dout ( sdram_dout   ),
-
-    .snd        ( snd          )
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       ),
+    .snd_addr   ( snd_addr      ),
+    .snd_cs     ( snd_cs        ),
+    .snd_data   ( snd_data      ),
+    .snd_ok     ( snd_ok        ),
+    .snd_left   ( snd_left      ),
+    .snd_right  ( snd_right     ),
+    .sample     ( sample        ),
+    .debug_bus  ( debug_bus     )
 );
-
-// Placeholder for graphics output
-always @(posedge clk24) begin
-    // TODO: Implement graphics pipeline
-    red   <= 0;
-    green <= 0;
-    blue  <= 0;
-end
+`else
+assign snd_left    = 0;
+assign snd_right   = 0;
+assign sample      = 0;
+assign snd_cs      = 0;
+assign snd_addr    = 0;
+`endif
 
 endmodule

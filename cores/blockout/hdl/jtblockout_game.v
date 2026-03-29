@@ -14,7 +14,7 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 28-3-2026 */
+    Date: 29-3-2026 */
 
 module jtblockout_game(
     `include "jtframe_game_ports.inc"
@@ -25,6 +25,7 @@ wire [ 7:0] snd_latch;
 wire snd_stb;
 
 // CS signals and RnW from main.v
+wire pal_cs;
 wire cpu_rnw;
 
 // BRAM write enables: active when CPU writes and BRAM is selected
@@ -87,18 +88,18 @@ jtblockout_main u_main(
 
     // SDRAM ROM
     .main_addr  ( main_addr     ),
-    .main_cs    ( main_cs       ),
-    .main_data  ( main_data     ),
-    .main_ok    ( main_ok       ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
 
     // SDRAM Work RAM
     .ram_addr   ( ram_addr      ),
     .ram_we     ( ram_we        ),
-    .ram_dsn    ( ram_dsn       ),
-    .ram_din    ( ram_din       ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
     .cpu_rnw    ( cpu_rnw       ),
-    .ram_cs     ( ram_cs        ),
-    .ram_data   ( ram_data      ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
     .ram_ok     ( ram_ok        ),
 
     // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
@@ -129,18 +130,23 @@ jtblockout_snd u_snd(
     .snd_cs     ( snd_cs            ),
     .snd_data   ( snd_data          ),
     .snd_ok     ( snd_ok            ),
+    .adpcm_addr ( adpcm_addr        ),
+    .adpcm_cs   ( adpcm_cs          ),
+    .adpcm_data ( adpcm_data        ),
+    .adpcm_ok   ( adpcm_ok          ),
     .snd_left   ( snd_left          ),
     .snd_right  ( snd_right         ),
     .sample     ( sample            ),
     .debug_bus  ( debug_bus         )
 );
-assign snd_right = snd_left;
 `else
 assign snd_left    = 0;
 assign snd_right   = 0;
 assign sample      = 0;
 assign snd_cs      = 0;
 assign snd_addr    = 0;
+assign adpcm_cs    = 0;
+assign adpcm_addr  = 0;
 `endif
 
 endmodule

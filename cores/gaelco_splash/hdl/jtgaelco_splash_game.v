@@ -25,15 +25,19 @@ wire [ 7:0] snd_latch;
 wire snd_stb;
 
 // CS signals and RnW from main.v
+wire spr_cs, pal_cs, vram_cs;
+wire cpu_rnw;
 
 // BRAM write enables: active when CPU writes and BRAM is selected
 wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
-assign pal_we   = pal_cs   ? bram_we : 2'b00;
 assign spr_we   = spr_cs   ? bram_we : 2'b00;
+assign pal_we   = pal_cs   ? bram_we : 2'b00;
+assign vram_we  = vram_cs  ? bram_we : 2'b00;
 
 // Video-side BRAM addresses (no video module yet — stub to zero)
-assign pal_addr = 0;
-assign spr_addr = 0;
+assign spr_addr   = 0;
+assign pal_addr   = 0;
+assign vram_addr  = 0;
 
 // Stub assignments — modules not yet instantiated
 assign red        = 0;
@@ -64,28 +68,28 @@ jtgaelco_splash_main u_main(
 
     // SDRAM ROM
     .main_addr  ( main_addr     ),
-    .main_cs    ( main_cs       ),
-    .main_data  ( main_data     ),
-    .main_ok    ( main_ok       ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
 
     // SDRAM Work RAM
     .ram_addr   ( ram_addr      ),
     .ram_we     ( ram_we        ),
-    .ram_dsn    ( ram_dsn       ),
-    .ram_din    ( ram_din       ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
     .cpu_rnw    ( cpu_rnw       ),
-    .ram_cs     ( ram_cs        ),
-    .ram_data   ( ram_data      ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
     .ram_ok     ( ram_ok        ),
 
     // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
-    .pal_cs     ( pal_cs        ),
     .spr_cs     ( spr_cs        ),
-    .vram_we    ( vram_we       ),
+    .pal_cs     ( pal_cs        ),
+    .vram_cs    ( vram_cs       ),
 
     // Video RAM CPU-side read-back (from generated BRAM ports)
-    .mp_dout    ( mp_dout       ),
     .ms_dout    ( ms_dout       ),
+    .mp_dout    ( mp_dout       ),
     .mv_dout    ( mv_dout       ),
 
     // I/O
@@ -110,11 +114,10 @@ jtgaelco_splash_snd u_snd(
     .snd_cs     ( snd_cs            ),
     .snd_data   ( snd_data          ),
     .snd_ok     ( snd_ok            ),
-    .snd        ( snd_left          ),
-    .sample     ( sample            ),
-    .debug_bus  ( debug_bus         )
+    .snd_left   ( snd_left          ),
+    .snd_right  ( snd_right         ),
+    .sample     ( sample            )
 );
-assign snd_right = snd_left;
 `else
 assign snd_left    = 0;
 assign snd_right   = 0;

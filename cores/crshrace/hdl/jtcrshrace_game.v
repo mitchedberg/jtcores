@@ -34,12 +34,14 @@ assign vram0_we = vram0_cs ? bram_we : 2'b00;
 assign vram1_we = vram1_cs ? bram_we : 2'b00;
 assign pal_we   = pal_cs   ? bram_we : 2'b00;
 assign vregs_we = vregs_cs ? bram_we : 2'b00;
+assign spr_we   = 2'b00;
 
 // Video-side BRAM addresses (no video module yet — stub to zero)
 assign vram0_addr = 0;
 assign vram1_addr = 0;
 assign pal_addr   = 0;
 assign vregs_addr = 0;
+assign spr_addr   = 0;
 
 // Stub assignments — modules not yet instantiated
 assign red        = 0;
@@ -48,7 +50,9 @@ assign blue       = 0;
 assign dip_flip   = 0;
 assign debug_view = 0;
 
-// Pixel clock and vertical timer
+// Pixel clock: 48 MHz * 105 / 352 = 14.318181 MHz (pxl2_cen)
+// pxl_cen = half of pxl2_cen = 7.159 MHz
+// cen[0] = base rate (pxl2_cen), cen[1] = half rate (pxl_cen)
 jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
     .clk    ( clk                    ),
     .n      ( 10'd105                ),
@@ -58,13 +62,13 @@ jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
 );
 
 jtframe_vtimer #(
-    .VB_START   ( 9'd223          ),
-    .VB_END     ( 9'd261          ),
-    .VS_START   ( 9'd231          ),
-    .HCNT_END   ( 9'd455          ),
-    .HB_START   ( 9'd319          ),
-    .HB_END     ( 9'd455          ),
-    .HS_START   ( 9'd360          )
+    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
+    .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
+    .VS_START   ( 9'd231          ),  // vsync pulse
+    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
+    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
+    .HB_END     ( 9'd455          ),  // hblank to end of line
+    .HS_START   ( 9'd360          )   // hsync pulse
 ) u_vtimer(
     .clk        ( clk             ),
     .pxl_cen    ( pxl_cen         ),
@@ -108,13 +112,13 @@ jtcrshrace_main u_main(
     .ram_dout   ( ram_data      ),
     .ram_ok     ( ram_ok        ),
 
-    // CPU bus → video BRAMs (CS signals)
+    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
     .vram0_cs   ( vram0_cs      ),
     .vram1_cs   ( vram1_cs      ),
     .pal_cs     ( pal_cs        ),
     .vregs_cs   ( vregs_cs      ),
 
-    // Video RAM CPU-side read-back (stub: game.v returns 0)
+    // Video RAM CPU-side read-back (from generated BRAM ports)
     .m0_dout    ( m0_dout       ),
     .m1_dout    ( m1_dout       ),
     .mp_dout    ( mp_dout       ),

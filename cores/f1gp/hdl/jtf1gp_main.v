@@ -14,9 +14,7 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 2026-03-28 */
-
-// F1 Grand Prix 68000 main CPU module
+    Date: 29-3-2026 */
 
 module jtf1gp_main(
     input                rst,
@@ -24,20 +22,30 @@ module jtf1gp_main(
     input                LVBL,
 
     // SDRAM ROM
-    output        [16:1] main_addr,
+    output        [19:1] main_addr,
     output reg           rom_cs,
     input         [15:0] rom_data,
     input                rom_ok,
 
+    // SDRAM Work RAM
+    output        [16:1] ram_addr,
+    output               ram_we,
+    output        [ 1:0] dsn,
+    output        [15:0] main_dout,
+    output               cpu_rnw,
+    output reg           wram_cs,
+    input         [15:0] ram_dout,
+    input                ram_ok,
+
     // CPU bus (for video BRAMs in game.v)
+    output reg           pal_cs,
     output reg           vram0_cs,
     output reg           vram1_cs,
-    output reg           pal_cs,
 
-    // Video RAM read-back
-    input         [15:0] vram0_data,   // CPU-side vram0 read
-    input         [15:0] vram1_data,   // CPU-side vram1 read
-    input         [15:0] pal_data,     // CPU-side palette read
+    // Video RAM read-back (stub: game.v returns 0)
+    input         [15:0] mp_dout,    // CPU-side palette read
+    input         [15:0] m0_dout,    // CPU-side vram0 read
+    input         [15:0] m1_dout,    // CPU-side vram1 read
 
     // I/O
     input         [ 5:0] joystick1,
@@ -57,96 +65,129 @@ wire        UDSn, LDSn, RnW, ASn, VPAn, DTACKn, BUSn;
 wire [ 2:0] FC, IPLn;
 wire [15:0] cpu_dout;
 reg  [15:0] cpu_din;
-reg         io_cs;
+reg         io_cs, sndlatch_cs, clr_int;
 wire        intn, bus_cs, bus_busy;
 
-assign main_addr = A[16:1];
+`ifdef SIMULATION
+wire [23:0] A_full = {A, 1'b0};
+`endif
+
+assign main_addr = A[19:1];
+assign ram_addr  = A[16:1];
+assign main_dout = cpu_dout;
+assign cpu_rnw   = RnW;
+assign dsn       = {UDSn, LDSn};
+assign ram_we    = wram_cs & ~RnW;
 assign BUSn      = ASn | (LDSn & UDSn);
-assign IPLn      = intn ? 3'b111 : 3'b011;
+assign IPLn      = intn ? 3'b111 : 3'b011;   // level 4 when active
 assign VPAn      = ~(!ASn && FC == 3'b111);
-assign bus_cs    = rom_cs;
-assign bus_busy  = rom_cs & ~rom_ok;
+assign bus_cs    = rom_cs | wram_cs;
+assign bus_busy  = (rom_cs & ~rom_ok) | (wram_cs & ~ram_ok);
 
-// CPU instantiation
-jtframe_m68k cpu(
-    .rst(rst),
-    .clk(clk),
-    .cpu_cen(cpu_cen),
-    .cpu_cenb(cpu_cenb),
-    .eab(A),
-    .ASn(ASn),
-    .UDSn(UDSn),
-    .LDSn(LDSn),
-    .eRWn(RnW),
-    .VPAn(VPAn),
-    .DTACKn(DTACKn),
-    .FC(FC),
-    .RESETn(),
-    .oEdb(cpu_dout),
-    .iEdb(cpu_din),
-    .IPLn(IPLn),
-    .HALTn(1'b1),
-    .BERRn(1'b1),
-    .BRn(1'b1),
-    .BGn()
-);
-
-assign DTACKn    = ~bus_busy & ~BUSn;
-assign intn      = LVBL;
-
-// Clock enable (12 MHz from 48 MHz)
-jtframe_68kdtack_cen #(.W(2)) u_cen(
-    .clk        ( clk       ),
-    .cpu_cen    ( cpu_cen   ),
-    .cpu_cenb   ( cpu_cenb  ),
-    .DTACKn     ( DTACKn    ),
-);
-
-// Address decode
+// Address decode — combinational
 always @* begin
-    rom_cs      = !ASn && A[23:17] == 7'b0_00000;
-    vram0_cs    = !BUSn && A[23:16] == 8'h20;
-    vram1_cs    = !BUSn && A[23:16] == 8'h30;
-    pal_cs      = !BUSn && A[23:16] == 8'h40;
-    io_cs       = !BUSn && A[23:16] == 8'h50;
+    rom_cs      = !ASn  && A[23:20] == 4'h0;
+    pal_cs      = !BUSn && A[23:13] == 11'b0110_0000_000;
+    vram0_cs    = !BUSn && A[23:13] == 11'b1000_0000_000;
+    vram1_cs    = !BUSn && A[23:13] == 11'b1000_0000_001;
+    io_cs       = !BUSn && A[23:4]  == 20'hC0000;
+    sndlatch_cs = !BUSn && A[23:2]  == 22'h300004 && !RnW;
+    wram_cs     = !BUSn && A[23:17] == 7'b1111_111;
+    clr_int     = io_cs && !RnW;   // any IO write clears interrupt
 end
 
-// CPU data input mux
-always @* begin
-    if ( rom_cs )
-        cpu_din = rom_data;
-    else if ( vram0_cs )
-        cpu_din = vram0_data;
-    else if ( vram1_cs )
-        cpu_din = vram1_data;
-    else if ( pal_cs )
-        cpu_din = pal_data;
-    else
-        cpu_din = 16'hFFFF;
-end
-
-// Sound latch
+// Sound latch capture
 always @(posedge clk) begin
     if (rst) begin
-        snd_latch <= 8'h00;
-        snd_stb   <= 1'b0;
+        snd_latch <= 8'h0;
+        snd_stb   <= 0;
     end else begin
-        snd_stb <= 1'b0;
-        if (io_cs && !RnW && !LDSn) begin
+        snd_stb <= sndlatch_cs;
+        if (sndlatch_cs)
             snd_latch <= cpu_dout[7:0];
-            snd_stb   <= 1'b1;
-        end
     end
 end
 
-`else
-assign main_addr = 16'h0;
-assign rom_cs = 1'b0;
-assign vram0_cs = 1'b0;
-assign vram1_cs = 1'b0;
-assign pal_cs = 1'b0;
-assign snd_latch = 8'h0;
-assign snd_stb = 1'b0;
-`endif
+// Data input mux
+always @(posedge clk) begin
+    cpu_din <= rom_cs   ? rom_data :
+               wram_cs  ? ram_dout :
+               pal_cs   ? mp_dout  :
+               vram0_cs ? m0_dout  :
+               vram1_cs ? m1_dout  :
+               io_cs    ? (A[3:1]==3'd0 ? {8'hFF, joystick1}             :
+                           A[3:1]==3'd1 ? {8'hFF, joystick2}             :
+                           A[3:1]==3'd2 ? {dipsw[14:8], LVBL, dipsw[7:0]} :
+                                          16'hFFFF) :
+                          16'hFFFF;
+end
 
+// VBLANK falling-edge interrupt
+jtframe_edge #(.QSET(0)) u_vbl(
+    .rst    ( rst      ),
+    .clk    ( clk      ),
+    .edgeof ( ~LVBL    ),
+    .clr    ( clr_int  ),
+    .q      ( intn     )
+);
+
+// 12 MHz clock enable from 48 MHz: num=1, den=4
+jtframe_68kdtack_cen #(.W(5)) u_dtack(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .cpu_cen    ( cpu_cen       ),
+    .cpu_cenb   ( cpu_cenb      ),
+    .bus_cs     ( bus_cs        ),
+    .bus_busy   ( bus_busy      ),
+    .bus_legit  ( 1'b0          ),
+    .bus_ack    ( 1'b0          ),
+    .ASn        ( ASn           ),
+    .DSn        ( {UDSn, LDSn}  ),
+    .num        ( 4'd1          ),
+    .den        ( 5'd4          ),
+    .DTACKn     ( DTACKn        ),
+    .wait2      ( 1'b0          ),
+    .wait3      ( 1'b0          ),
+    .fave       (               ),
+    .fworst     (               )
+);
+
+jtframe_m68k u_cpu(
+    .clk        ( clk           ),
+    .rst        ( rst           ),
+    .RESETn     (               ),
+    .cpu_cen    ( cpu_cen       ),
+    .cpu_cenb   ( cpu_cenb      ),
+
+    .eab        ( A             ),
+    .iEdb       ( cpu_din       ),
+    .oEdb       ( cpu_dout      ),
+
+    .eRWn       ( RnW           ),
+    .LDSn       ( LDSn          ),
+    .UDSn       ( UDSn          ),
+    .ASn        ( ASn           ),
+    .VPAn       ( VPAn          ),
+    .FC         ( FC            ),
+
+    .BERRn      ( 1'b1          ),
+    .HALTn      ( dip_pause     ),
+    .BRn        ( 1'b1          ),
+    .BGACKn     ( 1'b1          ),
+    .BGn        (               ),
+
+    .DTACKn     ( DTACKn        ),
+    .IPLn       ( IPLn          )
+);
+`else
+initial begin
+    rom_cs = 0; wram_cs = 0;
+    pal_cs = 0; vram0_cs = 0; vram1_cs = 0;
+    snd_latch = 0;
+    snd_stb = 0;
+end
+assign main_addr = 0; assign ram_addr = 0;
+assign main_dout = 0; assign dsn = 0; assign ram_we = 0;
+assign cpu_rnw = 1;
+`endif
 endmodule

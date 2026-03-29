@@ -14,41 +14,56 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 28-03-2026 */
+    Date: 29-3-2026 */
+
+// Atari Batman sound module - NOSOUND stub
 
 module jtatari_batman_snd(
-    input           clk,
-    input           rst,
-    output          snd_cen,
-
-    // Z80 CPU interface
-    input    [15:0] cpu_addr,
-    input    [7:0]  cpu_din,
-    output   [7:0]  cpu_dout,
-    input           cpu_rnw,
-    output          cpu_irq,
-
-    // YM2151 sound chip
-    output          ym_a0,
-    output   [7:0]  ym_dout,
-    output          ym_we,
-    input    [7:0]  ym_din,
-
-    // MSM6295 ADPCM
-    output   [15:0] adpcm_addr,
-    output          adpcm_cen,
-    input    [7:0]  adpcm_data,
-
-    // Latch from main CPU
-    input    [7:0]  snd_latch,
-    input           snd_stb,
-    output          snd_flag,
-
+    input             rst,
+    input             clk,
+    // Sound latch from main CPU
+    input      [ 7:0] snd_latch,
+    input             snd_stb,
+    // Z80 ROM (SDRAM)
+    output     [15:0] snd_addr,
+    output            snd_cs,
+    input      [ 7:0] snd_data,
+    input             snd_ok,
+    // ADPCM ROM (SDRAM)
+    output     [20:0] adpcm_addr,
+    output            adpcm_cs,
+    input      [ 7:0] adpcm_data,
+    input             adpcm_ok,
     // Audio output
     output signed [15:0] snd_left,
-    output signed [15:0] snd_right
+    output signed [15:0] snd_right,
+    output               sample,
+    // Debug
+    input      [ 7:0] debug_bus
 );
 
-// TODO: Implement Z80 sound CPU logic with YM2151 and MSM6295
+`ifndef NOSOUND
+
+// This is a placeholder for the actual sound implementation
+// TODO: Add Z80 + YM2151 + OKI MSM6295 implementation
+
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
+assign sample      = 1'b0;
+assign snd_cs      = 1'b0;
+assign snd_addr    = 16'd0;
+assign adpcm_cs    = 1'b0;
+assign adpcm_addr  = 21'd0;
+
+`else
+// NOSOUND stub — all outputs driven to safe defaults
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
+assign sample      = 1'b0;
+assign snd_cs      = 1'b0;
+assign snd_addr    = 16'd0;
+assign adpcm_cs    = 1'b0;
+assign adpcm_addr  = 21'd0;
+`endif
 
 endmodule

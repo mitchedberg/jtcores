@@ -98,76 +98,121 @@ wire        ym_adpcmb_roe_n;
 // --- Memory decode (combinational) ---
 always @(*) begin
     macc_n  =  mreq_n | ~rfsh_n;
-    rom_cs  = ~macc_n && A[15:13] == 3'h0;
-    ram_cs  = ~macc_n && A[15:13] == 3'h2;
-    bank_cs = ~macc_n && A[15:8]  == 8'h30;
-    ym_cs   = ~iorq_n && A[7:2] == 6'b10_0000;
-    latch_rd = ~macc_n && A[15:0] == 16'h4000;
-    latch_ack = latch_rd & ~rd_n;
-    bank_wr = ~iorq_n && A[7:0] == 8'h3c;
+    rom_cs  = !macc_n && A[15:13] == 3'h0;
+    ram_cs  = !macc_n && A[15:13] == 3'h2;
+    bank_cs = !macc_n && A[15:8]  == 8'h30;
+    ym_cs   = !iorq_n && A[7:2] == 6'b10_0000;
+    latch_rd = !macc_n && A[15:0] == 16'h4000;
+    latch_ack = latch_rd & !rd_n;
+    bank_wr = !iorq_n && A[7:0] == 8'h3c;
 end
 
-// --- Bank register and NMI ---
+// --- Bank register update ---
 always @(posedge clk) begin
-    if (rst) begin
-        bank <= 2'h0;
+    if (rst)
+        bank <= 2'd0;
+    else if (bank_wr & !wr_n)
+        bank <= cpu_dout[1:0];
+end
+
+// --- NMI: set on snd_stb, clear on latch_ack ---
+always @(posedge clk) begin
+    if (rst)
         nmi_n <= 1'b1;
-    end else if (cen4) begin
-        if (bank_wr & ~wr_n)
-            bank <= cpu_dout[1:0];
-        if (snd_stb)
-            nmi_n <= 1'b0;
-        else if (latch_ack)
-            nmi_n <= 1'b1;
-    end
+    else if (snd_stb)
+        nmi_n <= 1'b0;
+    else if (latch_ack)
+        nmi_n <= 1'b1;
 end
 
-// --- ROM address with banking ---
-assign snd_addr = A[16:0];
+// --- ROM address mux (fixed bank 0, banked 0x3000-0x3FFF) ---
+assign snd_addr = rom_cs  ? A[16:0] :
+                  bank_cs ? {bank, A[12:0]} : 17'd0;
+assign snd_cs   = rom_cs | bank_cs;
 
-// --- ROM/RAM select and data read ---
-always @(*) begin
-    snd_cs      = rom_cs;
-    adpcma_cs   = 1'b0;
-    adpcmb_cs   = 1'b0;
-    cpu_din     = 8'h00;
-
-    if (rom_cs)
-        cpu_din = snd_data;
-    else if (ram_cs)
-        cpu_din = ram_dout;
-    else if (latch_rd)
-        cpu_din = snd_latch;
-    else if (ym_cs)
-        cpu_din = ym_dout;
+// --- CPU data mux (registered, matching psikyo pattern) ---
+always @(posedge clk) begin
+    case (1'b1)
+        rom_cs | bank_cs: cpu_din <= snd_data;
+        ym_cs:            cpu_din <= ym_dout;
+        latch_rd:         cpu_din <= snd_latch;
+        ram_cs:           cpu_din <= ram_dout;
+        default:          cpu_din <= 8'hff;
+    endcase
 end
 
-// --- ADPCM address outputs (connected to YM2610) ---
+// --- ADPCM ROM wiring ---
 assign adpcma_addr = ym_adpcma_addr;
-assign adpcma_cs   = ~ym_adpcma_roe_n;
+assign adpcma_cs   = !ym_adpcma_roe_n;
 assign adpcmb_addr = ym_adpcmb_addr;
-assign adpcmb_cs   = ~ym_adpcmb_roe_n;
+assign adpcmb_cs   = !ym_adpcmb_roe_n;
 
-// --- Stub audio output ---
-assign snd_left  = 16'h0000;
-assign snd_right = 16'h0000;
-assign sample    = 1'b0;
+// --- Z80 CPU ---
+jtframe_sysz80 #(.RAM_AW(9), .RECOVERY(0)) u_cpu(
+    .rst_n   ( ~rst      ),
+    .clk     ( clk       ),
+    .cen     ( cen4      ),
+    .cpu_cen (           ),
+    .int_n   ( ym_irq_n  ),
+    .nmi_n   ( nmi_n     ),
+    .busrq_n ( 1'b1      ),
+    .m1_n    (           ),
+    .mreq_n  ( mreq_n    ),
+    .iorq_n  ( iorq_n    ),
+    .rd_n    ( rd_n      ),
+    .wr_n    ( wr_n      ),
+    .rfsh_n  ( rfsh_n    ),
+    .halt_n  (           ),
+    .busak_n (           ),
+    .A       ( A         ),
+    .cpu_din ( cpu_din   ),
+    .cpu_dout( cpu_dout  ),
+    .ram_dout( ram_dout  ),
+    .ram_cs  ( ram_cs    ),
+    .rom_cs  ( snd_cs    ),
+    .rom_ok  ( snd_ok    )
+);
 
-// --- Z80 CPU instance (stub) ---
-// Full Z80 + YM2610 instantiation would go here
-// For now, stub the CPU interface
+// --- YM2610 ---
+jt10 u_ym2610(
+    .rst          ( rst              ),
+    .clk          ( clk              ),
+    .cen          ( cen4             ),
+    .din          ( cpu_dout         ),
+    .addr         ( A[1:0]           ),
+    .cs_n         ( ~ym_cs           ),
+    .wr_n         ( wr_n             ),
+    .dout         ( ym_dout          ),
+    .irq_n        ( ym_irq_n         ),
+    .adpcma_addr  ( ym_adpcma_addr   ),
+    .adpcma_bank  ( ym_adpcma_bank   ),
+    .adpcma_roe_n ( ym_adpcma_roe_n  ),
+    .adpcma_data  ( adpcma_data      ),
+    .adpcmb_addr  ( ym_adpcmb_addr   ),
+    .adpcmb_roe_n ( ym_adpcmb_roe_n  ),
+    .adpcmb_data  ( adpcmb_data      ),
+    .psg_A        (                  ),
+    .psg_B        (                  ),
+    .psg_C        (                  ),
+    .fm_snd       (                  ),
+    .psg_snd      (                  ),
+    .snd_right    ( snd_right        ),
+    .snd_left     ( snd_left         ),
+    .snd_sample   ( sample           ),
+    .ch_enable    ( 6'h3f            )
+);
 
 `else
-// NOSOUND mode
-assign snd_left  = 16'h0000;
-assign snd_right = 16'h0000;
-assign sample    = 1'b0;
-assign snd_addr  = 17'h0;
-assign snd_cs    = 1'b0;
-assign adpcma_addr = 20'h0;
-assign adpcma_cs = 1'b0;
-assign adpcmb_addr = 24'h0;
-assign adpcmb_cs = 1'b0;
+// NOSOUND stub — all outputs driven to safe defaults
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
+assign sample      = 1'b0;
+assign snd_cs      = 1'b0;
+assign snd_addr    = 17'd0;
+assign adpcma_cs   = 1'b0;
+assign adpcma_addr = 20'd0;
+assign adpcmb_cs   = 1'b0;
+assign adpcmb_addr = 24'd0;
 `endif
 
 endmodule

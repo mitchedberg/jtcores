@@ -14,27 +14,42 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 28-3-2026 */
+    Date: 29-3-2026 */
 
+// Galpanic sound module stub
 module jtgalpanic_snd(
-    input   rst,
-    input   clk,
-
-    input   [ 7:0] snd_latch,
-    input          snd_stb,
-
-    output reg [16:0] snd_addr,
-    output reg        snd_cs,
+    input             rst,
+    input             clk,
+    // Sound latch from main CPU
+    input      [ 7:0] snd_latch,
+    input             snd_stb,
+    // Z80 ROM (SDRAM)
+    output     [16:0] snd_addr,
+    output            snd_cs,
     input      [ 7:0] snd_data,
     input             snd_ok,
-
+    // Audio output
     output signed [15:0] snd_left,
     output signed [15:0] snd_right,
-    input          sample,
-    output reg    [ 7:0] debug_bus
+    output               sample,
+    // Debug
+    input      [ 7:0] debug_bus
 );
 
-assign snd_left  = 0;
-assign snd_right = 0;
+`ifndef NOSOUND
+// Placeholder for future sound implementation
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
+assign sample      = 1'b0;
+assign snd_cs      = 1'b0;
+assign snd_addr    = 17'd0;
+`else
+// NOSOUND stub — all outputs driven to safe defaults
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
+assign sample      = 1'b0;
+assign snd_cs      = 1'b0;
+assign snd_addr    = 17'd0;
+`endif
 
 endmodule

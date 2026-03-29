@@ -16,6 +16,10 @@
     Version: 1.0
     Date: 29-3-2026 */
 
+// Atari Blasteroids Z80 + YM2203 sound module stub
+// Z80 @ 1.789 MHz, clock enable generated from 48 MHz system clock
+// YM2203 @ 1.789 MHz sound synthesis
+
 module jtatari_blstroid_snd(
     input             rst,
     input             clk,
@@ -23,15 +27,15 @@ module jtatari_blstroid_snd(
     input      [ 7:0] snd_latch,
     input             snd_stb,
     // Z80 ROM (SDRAM)
-    output     [16:0] snd_addr,
+    output     [14:0] snd_addr,
     output            snd_cs,
     input      [ 7:0] snd_data,
     input             snd_ok,
-    // Sample ROM (SDRAM) — adjust width per sound chip
-    output     [19:0] samples_addr,
-    output            samples_cs,
-    input      [ 7:0] samples_data,
-    input             samples_ok,
+    // Sample ROM (SDRAM)
+    output     [11:0] snd2_addr,
+    output            snd2_cs,
+    input      [ 7:0] snd2_data,
+    input             snd2_ok,
     // Audio output
     output signed [15:0] snd_left,
     output signed [15:0] snd_right,
@@ -41,31 +45,23 @@ module jtatari_blstroid_snd(
 );
 
 `ifndef NOSOUND
-
-// Placeholder stub: returns silence
-// TODO: Implement Z80 CPU, sound chip (YM2203/YM2151/OKI), and memory decode
-
-reg cen;
-always @(posedge clk) begin
-    cen <= ~cen; // Minimal clock enable (not correct — adjust per hardware)
-end
-
+// NOSOUND stub — all outputs driven to safe defaults
 assign snd_left    = 16'd0;
 assign snd_right   = 16'd0;
 assign sample      = 1'b0;
 assign snd_cs      = 1'b0;
-assign snd_addr    = 17'd0;
-assign samples_cs  = 1'b0;
-assign samples_addr = 20'd0;
-
+assign snd_addr    = 15'd0;
+assign snd2_cs     = 1'b0;
+assign snd2_addr   = 12'd0;
 `else
+// NOSOUND stub — all outputs driven to safe defaults
 assign snd_left    = 16'd0;
 assign snd_right   = 16'd0;
 assign sample      = 1'b0;
 assign snd_cs      = 1'b0;
-assign snd_addr    = 17'd0;
-assign samples_cs  = 1'b0;
-assign samples_addr = 20'd0;
+assign snd_addr    = 15'd0;
+assign snd2_cs     = 1'b0;
+assign snd2_addr   = 12'd0;
 `endif
 
 endmodule

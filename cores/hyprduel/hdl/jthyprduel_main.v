@@ -14,9 +14,7 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 2026-03-28 */
-
-// Hyper Duel 68000 main CPU module
+    Date: 28-3-2026 */
 
 module jthyprduel_main(
     input                rst,
@@ -30,17 +28,22 @@ module jthyprduel_main(
     input                rom_ok,
 
     // SDRAM Work RAM
+    output        [15:1] ram_addr,
+    output               ram_we,
+    output        [ 1:0] dsn,
+    output        [15:0] main_dout,
+    output               cpu_rnw,
     output reg           wram_cs,
     input         [15:0] ram_dout,
     input                ram_ok,
 
     // CPU bus (for video BRAMs in game.v)
-    output reg           vram_cs,
     output reg           pal_cs,
+    output reg           vram_cs,
 
-    // Video RAM read-back
-    input         [15:0] vram_dout,    // CPU-side vram read
-    input         [15:0] pal_dout,     // CPU-side palette read
+    // Video RAM read-back (from generated BRAM ports)
+    input         [15:0] mp_dout,    // CPU-side palette read
+    input         [15:0] m0_dout,    // CPU-side vram read
 
     // I/O
     input         [ 5:0] joystick1,
@@ -63,12 +66,55 @@ reg  [15:0] cpu_din;
 reg         io_cs;
 wire        intn, bus_cs, bus_busy;
 
+`ifdef SIMULATION
+wire [23:0] A_full = {A, 1'b0};
+`endif
+
 assign main_addr = A[20:1];
+assign ram_addr  = A[15:1];
+assign main_dout = cpu_dout;
+assign cpu_rnw   = RnW;
+assign dsn       = {UDSn, LDSn};
+assign ram_we    = wram_cs & ~RnW;
 assign BUSn      = ASn | (LDSn & UDSn);
-assign IPLn      = intn ? 3'b111 : 3'b011;
+assign IPLn      = intn ? 3'b111 : 3'b011;   // level 4 when active
 assign VPAn      = ~(!ASn && FC == 3'b111);
 assign bus_cs    = rom_cs | wram_cs;
 assign bus_busy  = (rom_cs & ~rom_ok) | (wram_cs & ~ram_ok);
+
+// Address decode — combinational
+always @* begin
+    rom_cs      = !ASn  && A[23:21] == 3'b000;
+    wram_cs     = !BUSn && A[23:16] == 8'h20;
+    vram_cs     = !BUSn && A[23:16] == 8'h30;
+    pal_cs      = !BUSn && A[23:16] == 8'h40;
+    io_cs       = !BUSn && A[23:16] == 8'h50;
+end
+
+// CPU data input mux (registered, matching psikyo pattern)
+always @(posedge clk) begin
+    case (1'b1)
+        rom_cs:   cpu_din <= rom_data;
+        wram_cs:  cpu_din <= ram_dout;
+        vram_cs:  cpu_din <= m0_dout;
+        pal_cs:   cpu_din <= mp_dout;
+        default:  cpu_din <= 16'hffff;
+    endcase
+end
+
+// Sound latch
+always @(posedge clk) begin
+    if (rst) begin
+        snd_latch <= 8'h00;
+        snd_stb   <= 1'b0;
+    end else begin
+        snd_stb <= 1'b0;
+        if (io_cs && !RnW && !LDSn) begin
+            snd_latch <= cpu_dout[7:0];
+            snd_stb   <= 1'b1;
+        end
+    end
+end
 
 // CPU instantiation
 jtframe_m68k cpu(
@@ -117,51 +163,19 @@ jtframe_68kdtack_cen #(.W(3)) u_cen(
     .fworst     (           )
 );
 
-// Address decode
-always @* begin
-    rom_cs      = !ASn && A[23:21] == 3'b000;
-    wram_cs     = !BUSn && A[23:16] == 8'h20;
-    vram_cs     = !BUSn && A[23:16] == 8'h30;
-    pal_cs      = !BUSn && A[23:16] == 8'h40;
-    io_cs       = !BUSn && A[23:16] == 8'h50;
-end
-
-// CPU data input mux
-always @* begin
-    if ( rom_cs )
-        cpu_din = rom_data;
-    else if ( wram_cs )
-        cpu_din = ram_dout;
-    else if ( vram_cs )
-        cpu_din = vram_dout;
-    else if ( pal_cs )
-        cpu_din = pal_dout;
-    else
-        cpu_din = 16'hFFFF;
-end
-
-// Sound latch
-always @(posedge clk) begin
-    if (rst) begin
-        snd_latch <= 8'h00;
-        snd_stb   <= 1'b0;
-    end else begin
-        snd_stb <= 1'b0;
-        if (io_cs && !RnW && !LDSn) begin
-            snd_latch <= cpu_dout[7:0];
-            snd_stb   <= 1'b1;
-        end
-    end
-end
-
 `else
 assign main_addr = 20'h0;
-assign rom_cs = 1'b0;
-assign wram_cs = 1'b0;
-assign vram_cs = 1'b0;
-assign pal_cs = 1'b0;
+assign ram_addr  = 15'h0;
+assign main_dout = 16'h0;
+assign cpu_rnw   = 1'b1;
+assign dsn       = 2'b11;
+assign ram_we    = 1'b0;
+assign rom_cs    = 1'b0;
+assign wram_cs   = 1'b0;
+assign vram_cs   = 1'b0;
+assign pal_cs    = 1'b0;
 assign snd_latch = 8'h0;
-assign snd_stb = 1'b0;
+assign snd_stb   = 1'b0;
 `endif
 
 endmodule

@@ -14,24 +14,146 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 28-03-2026 */
+    Date: 29-3-2026 */
 
 module jtatari_batman_game(
     `include "jtframe_game_ports.inc"
 );
 
-wire        snd_rst;
-wire [7:0]  snd_latch;
+// Inter-module wires
+wire [ 7:0] snd_latch;
+wire snd_stb;
 
-// Stub wires for memory ports
-wire [11:0] spr_addr;
-wire [15:0] spr_dout, main_dout, main_ram_din, main_ram_dout, ram_din, pal_dout;
-wire [ 1:0] main_ram_we, pal_we, spr_we;
-wire [11:0] pal_addr;
-wire        sample, mute;
+// CS signals and RnW from main.v
+wire spr_cs, pal_cs, main_cs;
+wire cpu_rnw;
 
-assign snd_rst          = ~rst;
-assign debug_view       = 8'd0;
-assign dip_flip         = 1'b0;
+// BRAM write enables: active when CPU writes and BRAM is selected
+wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
+assign spr_we   = spr_cs   ? bram_we : 2'b00;
+assign pal_we   = pal_cs   ? bram_we : 2'b00;
+assign main_ram_we = main_cs ? bram_we : 2'b00;
+
+// Video-side BRAM addresses (no video module yet — stub to zero)
+assign spr_addr   = 0;
+assign pal_addr   = 0;
+
+// Stub assignments — modules not yet instantiated
+assign red        = 0;
+assign green      = 0;
+assign blue       = 0;
+assign dip_flip   = 0;
+assign debug_view = 0;
+
+// Pixel clock: 48 MHz base clock divided as needed
+jtframe_frac_cen #(.W(2), .WC(11)) u_pxlcen(
+    .clk    ( clk                    ),
+    .n      ( 11'd216                ),
+    .m      ( 11'd1600               ),
+    .cen    ( {pxl_cen, pxl2_cen}   ),
+    .cenb   (                        )
+);
+
+jtframe_vtimer #(
+    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
+    .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
+    .VS_START   ( 9'd231          ),  // vsync pulse
+    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
+    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
+    .HB_END     ( 9'd455          ),  // hblank to end of line
+    .HS_START   ( 9'd360          )   // hsync pulse
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
+);
+
+// Unused SDRAM buses
+assign tile_cs     = 0;
+assign tile_addr   = 0;
+assign obj_cs      = 0;
+assign obj_addr    = 0;
+
+`ifndef NOMAIN
+jtatari_batman_main u_main(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .LVBL       ( LVBL          ),
+
+    // SDRAM ROM
+    .main_addr  ( main_addr     ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
+
+    // SDRAM Work RAM
+    .ram_addr   ( ram_addr      ),
+    .ram_we     ( ram_we        ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
+    .ram_ok     ( ram_ok        ),
+
+    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
+    .spr_cs     ( spr_cs        ),
+    .pal_cs     ( pal_cs        ),
+    .main_cs    ( main_cs       ),
+
+    // Video RAM CPU-side read-back (from generated BRAM ports)
+    .ms_dout    ( spr_dout      ),
+    .mp_dout    ( pal_dout      ),
+    .mm_dout    ( main_dout     ),
+
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
+
+    // Sound latch
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       )
+);
+`endif
+
+`ifndef NOSOUND
+jtatari_batman_snd u_snd(
+    .rst        ( rst               ),
+    .clk        ( clk               ),
+    .snd_latch  ( snd_latch         ),
+    .snd_stb    ( snd_stb           ),
+    .snd_addr   ( snd_addr          ),
+    .snd_cs     ( snd_cs            ),
+    .snd_data   ( snd_data          ),
+    .snd_ok     ( snd_ok            ),
+    .adpcm_addr ( adpcm_addr        ),
+    .adpcm_cs   ( adpcm_cs          ),
+    .adpcm_data ( adpcm_data        ),
+    .adpcm_ok   ( adpcm_ok          ),
+    .snd_left   ( snd_left          ),
+    .snd_right  ( snd_right         ),
+    .sample     ( sample            ),
+    .debug_bus  ( debug_bus         )
+);
+`else
+assign snd_left    = 0;
+assign snd_right   = 0;
+assign sample      = 0;
+assign snd_cs      = 0;
+assign snd_addr    = 0;
+assign adpcm_cs    = 0;
+assign adpcm_addr  = 0;
+`endif
 
 endmodule

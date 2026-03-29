@@ -12,71 +12,168 @@
     You should have received a copy of the GNU General Public License
     along with JTCORES.  If not, see <http://www.gnu.org/licenses/>.
 
-    Author: jotego
+    Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 2026-03-28
-*/
-
-`default_nettype none
+    Date: 28-3-2026 */
 
 module jtkonami_gijoe_game(
-    input           rst,
-    input           clk,
-    input           rst24,
-    input           clk24,
-    input           rst96,
-    input           clk96,
-    input   [ 1:0]  clk_rgb,
-
-    // Joystick
-    input   [15:0]  joystick1,
-    input   [15:0]  joystick2,
-    input   [15:0]  joystick3,
-    input   [15:0]  joystick4,
-    input           coin_input,
-    input           service,
-
-    // Video output
-    output  [31:0]  video_rgb,
-    output          video_de,
-    output          video_hs,
-    output          video_vs,
-
-    // Sound output
-    output  signed [15:0] audio_left,
-    output  signed [15:0] audio_right,
-
-    // ROM interface
-    output  [31:0]  rom_addr,
-    input   [15:0]  rom_data,
-    output  [ 1:0]  rom_cs,
-    output          rom_ok,
-
-    // RAM interface (BRAM/SDRAM)
-    input           downloading,
-    output  [24:0]  ram_addr,
-    input   [31:0]  ram_data,
-    output  [31:0]  ram_din,
-    output  [ 3:0]  ram_we
+    `include "jtframe_game_ports.inc"
 );
 
-// Placeholder - to be implemented
-// TODO: Implement 68000 main CPU wrapper
-// TODO: Implement Z80 sound CPU wrapper
-// TODO: Implement K054539 sound chip
-// TODO: Implement video rendering (K056832 tilemap, K053247 sprites)
+// Inter-module wires
+wire [ 7:0] snd_latch;
+wire snd_stb;
 
-assign video_rgb = 32'h0;
-assign video_de = 1'b0;
-assign video_hs = 1'b0;
-assign video_vs = 1'b0;
-assign audio_left = 16'h0;
-assign audio_right = 16'h0;
-assign rom_addr = 32'h0;
-assign rom_cs = 2'b11;
-assign rom_ok = 1'b1;
-assign ram_addr = 25'h0;
-assign ram_din = 32'h0;
-assign ram_we = 4'h0;
+// CS signals and RnW from main.v
+wire spr_cs, pal_cs, vram0_cs, vram1_cs, vregs_cs;
+wire cpu_rnw;
+
+// BRAM write enables: active when CPU writes and BRAM is selected
+wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
+assign spr_we   = spr_cs   ? bram_we : 2'b00;
+assign pal_we   = pal_cs   ? bram_we : 2'b00;
+assign vram0_we = vram0_cs ? bram_we : 2'b00;
+assign vram1_we = vram1_cs ? bram_we : 2'b00;
+assign vregs_we = vregs_cs ? bram_we : 2'b00;
+
+// Video-side BRAM addresses (no video module yet — stub to zero)
+assign spr_addr   = 0;
+assign pal_addr   = 0;
+assign vram0_addr = 0;
+assign vram1_addr = 0;
+assign vregs_addr = 0;
+
+// Stub assignments — modules not yet instantiated
+assign red        = 0;
+assign green      = 0;
+assign blue       = 0;
+assign dip_flip   = 0;
+assign debug_view = 0;
+
+// Pixel clock: 48 MHz * 105 / 352 = 14.318181 MHz (pxl2_cen)
+// pxl_cen = half of pxl2_cen = 7.159 MHz
+// cen[0] = base rate (pxl2_cen), cen[1] = half rate (pxl_cen)
+jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
+    .clk    ( clk                    ),
+    .n      ( 10'd105                ),
+    .m      ( 10'd352                ),
+    .cen    ( {pxl_cen, pxl2_cen}   ),
+    .cenb   (                        )
+);
+
+jtframe_vtimer #(
+    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
+    .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
+    .VS_START   ( 9'd231          ),  // vsync pulse
+    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
+    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
+    .HB_END     ( 9'd455          ),  // hblank to end of line
+    .HS_START   ( 9'd360          )   // hsync pulse
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
+);
+
+// Unused SDRAM buses
+assign tile_cs     = 0;
+assign tile_addr   = 0;
+assign obj_cs      = 0;
+assign obj_addr    = 0;
+
+`ifndef NOMAIN
+jtkonami_gijoe_main u_main(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .LVBL       ( LVBL          ),
+
+    // SDRAM ROM
+    .main_addr  ( main_addr     ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
+
+    // SDRAM Work RAM
+    .ram_addr   ( ram_addr      ),
+    .ram_we     ( ram_we        ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
+    .ram_ok     ( ram_ok        ),
+
+    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
+    .spr_cs     ( spr_cs        ),
+    .pal_cs     ( pal_cs        ),
+    .vram0_cs   ( vram0_cs      ),
+    .vram1_cs   ( vram1_cs      ),
+    .vregs_cs   ( vregs_cs      ),
+
+    // Video RAM CPU-side read-back (from generated BRAM ports)
+    .ms_dout    ( ms_dout       ),
+    .mp_dout    ( mp_dout       ),
+    .m0_dout    ( m0_dout       ),
+    .m1_dout    ( m1_dout       ),
+    .mr_dout    ( mr_dout       ),
+
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
+
+    // Sound latch
+    .snd_latch  ( snd_latch     ),
+    .snd_stb    ( snd_stb       )
+);
+`endif
+
+wire [23:0] adpcmb_addr_full;
+
+`ifndef NOSOUND
+jtkonami_gijoe_snd u_snd(
+    .rst        ( rst               ),
+    .clk        ( clk               ),
+    .snd_latch  ( snd_latch         ),
+    .snd_stb    ( snd_stb           ),
+    .snd_addr   ( snd_addr          ),
+    .snd_cs     ( snd_cs            ),
+    .snd_data   ( snd_data          ),
+    .snd_ok     ( snd_ok            ),
+    .adpcma_addr( adpcma_addr       ),
+    .adpcma_cs  ( adpcma_cs         ),
+    .adpcma_data( adpcma_data       ),
+    .adpcma_ok  ( adpcma_ok         ),
+    .adpcmb_addr( adpcmb_addr_full  ),
+    .adpcmb_cs  ( adpcmb_cs         ),
+    .adpcmb_data( adpcmb_data       ),
+    .adpcmb_ok  ( adpcmb_ok         ),
+    .snd_left   ( snd_left          ),
+    .snd_right  ( snd_right         ),
+    .sample     ( sample            ),
+    .debug_bus  ( debug_bus         )
+);
+assign adpcmb_addr = adpcmb_addr_full[18:0];
+`else
+assign snd_left    = 0;
+assign snd_right   = 0;
+assign sample      = 0;
+assign snd_cs      = 0;
+assign snd_addr    = 0;
+assign adpcma_cs   = 0;
+assign adpcma_addr = 0;
+assign adpcmb_cs   = 0;
+assign adpcmb_addr = 0;
+`endif
 
 endmodule

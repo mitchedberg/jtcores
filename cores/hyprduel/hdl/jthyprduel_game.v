@@ -25,22 +25,22 @@ wire [ 7:0] snd_latch;
 wire snd_stb;
 
 // CS signals and RnW from main.v
-wire wram_cs, vram_cs, pal_cs;
+wire pal_cs, vram_cs;
 wire cpu_rnw;
 
 // BRAM write enables: active when CPU writes and BRAM is selected
 wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
-assign spr_we   = 2'b00;
-assign pal_we   = pal_cs    ? bram_we : 2'b00;
-assign vram0_we = vram_cs   ? bram_we : 2'b00;
+assign pal_we   = pal_cs   ? bram_we : 2'b00;
+assign vram0_we = vram_cs  ? bram_we : 2'b00;
 assign vram1_we = 2'b00;
+assign spr_we   = 2'b00;
 assign vregs_we = 2'b00;
 
 // Video-side BRAM addresses (no video module yet — stub to zero)
-assign spr_addr   = 0;
 assign pal_addr   = 0;
 assign vram0_addr = 0;
 assign vram1_addr = 0;
+assign spr_addr   = 0;
 assign vregs_addr = 0;
 
 // Stub assignments — modules not yet instantiated
@@ -62,7 +62,7 @@ jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
 );
 
 jtframe_vtimer #(
-    .VB_START   ( 9'd224          ),  // 224 visible lines (0-223)
+    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
     .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
     .VS_START   ( 9'd231          ),  // vsync pulse
     .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
@@ -97,23 +97,28 @@ jthyprduel_main u_main(
     .LVBL       ( LVBL          ),
 
     // SDRAM ROM
-    .main_addr  ( main_addr[20:1] ),
+    .main_addr  ( main_addr     ),
     .rom_cs     ( main_cs       ),
     .rom_data   ( main_data     ),
     .rom_ok     ( main_ok       ),
 
     // SDRAM Work RAM
-    .wram_cs    ( wram_cs       ),
+    .ram_addr   ( ram_addr      ),
+    .ram_we     ( ram_we        ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( ram_cs        ),
     .ram_dout   ( ram_data      ),
     .ram_ok     ( ram_ok        ),
 
     // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
-    .vram_cs    ( vram_cs       ),
     .pal_cs     ( pal_cs        ),
+    .vram_cs    ( vram_cs       ),
 
     // Video RAM CPU-side read-back (from generated BRAM ports)
-    .vram_dout  ( m0_dout       ),
-    .pal_dout   ( mp_dout       ),
+    .mp_dout    ( mp_dout       ),
+    .m0_dout    ( m0_dout       ),
 
     // I/O
     .joystick1  ( joystick1     ),

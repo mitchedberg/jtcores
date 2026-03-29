@@ -14,7 +14,10 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 29-3-2026 */
+    Date: 2026-03-28 */
+
+// Konami GI Joe Sound Module (Z80 + K054539)
+// Placeholder: NOSOUND stub
 
 module jtkonami_gijoe_snd(
     input             rst,
@@ -27,11 +30,16 @@ module jtkonami_gijoe_snd(
     output            snd_cs,
     input      [ 7:0] snd_data,
     input             snd_ok,
-    // Sample ROM (SDRAM) — adjust width per sound chip
-    output     [19:0] samples_addr,
-    output            samples_cs,
-    input      [ 7:0] samples_data,
-    input             samples_ok,
+    // ADPCM-A ROM (SDRAM)
+    output     [19:0] adpcma_addr,
+    output            adpcma_cs,
+    input      [ 7:0] adpcma_data,
+    input             adpcma_ok,
+    // ADPCM-B ROM (SDRAM)
+    output     [23:0] adpcmb_addr,
+    output            adpcmb_cs,
+    input      [ 7:0] adpcmb_data,
+    input             adpcmb_ok,
     // Audio output
     output signed [15:0] snd_left,
     output signed [15:0] snd_right,
@@ -42,30 +50,20 @@ module jtkonami_gijoe_snd(
 
 `ifndef NOSOUND
 
-// Placeholder stub: returns silence
-// TODO: Implement Z80 CPU, sound chip (YM2203/YM2151/OKI), and memory decode
-
-reg cen;
-always @(posedge clk) begin
-    cen <= ~cen; // Minimal clock enable (not correct — adjust per hardware)
-end
-
-assign snd_left    = 16'd0;
-assign snd_right   = 16'd0;
-assign sample      = 1'b0;
-assign snd_cs      = 1'b0;
-assign snd_addr    = 17'd0;
-assign samples_cs  = 1'b0;
-assign samples_addr = 20'd0;
+// TODO: Implement K054539 sound module for Konami hardware
+// This is a placeholder for future sound implementation
 
 `else
+// NOSOUND stub — all outputs driven to safe defaults
 assign snd_left    = 16'd0;
 assign snd_right   = 16'd0;
 assign sample      = 1'b0;
 assign snd_cs      = 1'b0;
 assign snd_addr    = 17'd0;
-assign samples_cs  = 1'b0;
-assign samples_addr = 20'd0;
+assign adpcma_cs   = 1'b0;
+assign adpcma_addr = 20'd0;
+assign adpcmb_cs   = 1'b0;
+assign adpcmb_addr = 24'd0;
 `endif
 
 endmodule

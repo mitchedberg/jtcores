@@ -46,71 +46,130 @@ assign red        = 0;
 assign green      = 0;
 assign blue       = 0;
 assign dip_flip   = 0;
+assign debug_view = 0;
 
-// Main CPU and sound CPU
+// Pixel clock and video timing (placeholder)
+jtframe_frac_cen #(.W(2), .WC(10)) u_pxlcen(
+    .clk    ( clk                    ),
+    .n      ( 10'd105                ),
+    .m      ( 10'd352                ),
+    .cen    ( {pxl_cen, pxl2_cen}   ),
+    .cenb   (                        )
+);
+
+jtframe_vtimer #(
+    .VB_START   ( 9'd223          ),  // 224 visible lines (0-223)
+    .VB_END     ( 9'd261          ),  // 262 total lines (0-261)
+    .VS_START   ( 9'd231          ),  // vsync pulse
+    .HCNT_END   ( 9'd455          ),  // 456 total pixels (0-455)
+    .HB_START   ( 9'd319          ),  // 320 visible pixels (0-319)
+    .HB_END     ( 9'd455          ),  // hblank to end of line
+    .HS_START   ( 9'd360          )   // hsync pulse
+) u_vtimer(
+    .clk        ( clk             ),
+    .pxl_cen    ( pxl_cen         ),
+    .vdump      (                 ),
+    .vrender    (                 ),
+    .vrender1   (                 ),
+    .H          (                 ),
+    .Hinit      (                 ),
+    .Vinit      (                 ),
+    .LHBL       ( LHBL            ),
+    .LVBL       ( LVBL            ),
+    .HS         ( HS              ),
+    .VS         ( VS              )
+);
+
+// Unused SDRAM buses
+assign tile_cs     = 0;
+assign tile_addr   = 0;
+assign obj_cs      = 0;
+assign obj_addr    = 0;
+
+`ifndef NOMAIN
 jtshadfrce_main u_main(
     .rst        ( rst           ),
     .clk        ( clk           ),
+    .LVBL       ( LVBL          ),
 
-    // Interprocessor comm
-    .snd_latch  ( snd_latch     ),
-    .snd_stb    ( snd_stb       ),
+    // SDRAM ROM
+    .main_addr  ( main_addr     ),
+    .rom_cs     ( main_cs       ),
+    .rom_data   ( main_data     ),
+    .rom_ok     ( main_ok       ),
 
-    // ROM access
-    .rom_addr   ( rom_addr      ),
-    .rom_data   ( rom_data      ),
-    .rom_cs     ( rom_cs        ),
-    .rom_ok     ( rom_ok        ),
-
-    // SDRAM RAM access
+    // SDRAM Work RAM
     .ram_addr   ( ram_addr      ),
-    .ram_data   ( ram_data      ),
     .ram_we     ( ram_we        ),
-    .ram_dsn    ( ram_dsn       ),
+    .dsn        ( ram_dsn       ),
+    .main_dout  ( ram_din       ),
+    .cpu_rnw    ( cpu_rnw       ),
+    .wram_cs    ( ram_cs        ),
+    .ram_dout   ( ram_data      ),
     .ram_ok     ( ram_ok        ),
 
-    // BRAM write controls
+    // CPU bus → video BRAMs (CS signals; address driven by generated wrapper)
     .spr_cs     ( spr_cs        ),
-    .spr_we     ( spr_we        ),
     .pal_cs     ( pal_cs        ),
-    .pal_we     ( pal_we        ),
     .vram0_cs   ( vram0_cs      ),
-    .vram0_we   ( vram0_we      ),
     .vram1_cs   ( vram1_cs      ),
-    .vram1_we   ( vram1_we      ),
+    .vregs_cs   (               ),
 
-    // Inputs
-    .joy1       ( joy1          ),
-    .joy2       ( joy2          ),
-    .start_btn  ( start_btn     ),
-    .coin_input ( coin_input    ),
-    .service    ( service       ),
-    .tilt       ( tilt          ),
-    .dipsw      ( dipsw         )
-);
+    // Video RAM CPU-side read-back (from generated BRAM ports)
+    .ms_dout    ( ms_dout       ),
+    .mp_dout    ( mp_dout       ),
+    .m0_dout    ( m0_dout       ),
+    .m1_dout    ( m1_dout       ),
+    .mr_dout    ( 16'h0         ),
 
-// Sound CPU and audio
-jtshadfrce_snd u_snd(
-    .rst        ( rst           ),
-    .clk        ( clk           ),
-    .cen_z80    ( cen_z80       ),
-    .cen_fm     ( cen_fm        ),
-    .cen_pcm    ( cen_pcm       ),
+    // I/O
+    .joystick1  ( joystick1     ),
+    .joystick2  ( joystick2     ),
+    .dipsw      ( dipsw[15:0]   ),
+    .dip_pause  ( dip_pause     ),
 
+    // Sound latch
     .snd_latch  ( snd_latch     ),
-    .snd_stb    ( snd_stb       ),
-
-    // ROM access
-    .rom_addr   ( rom_addr_snd  ),
-    .rom_data   ( rom_data_snd  ),
-    .rom_cs     ( rom_cs_snd    ),
-    .rom_ok     ( rom_ok_snd    ),
-
-    // Audio output
-    .fm_left    ( fm_left       ),
-    .fm_right   ( fm_right      ),
-    .pcm_left   ( pcm_left      ),
-    .pcm_right  ( pcm_right     )
+    .snd_stb    ( snd_stb       )
 );
+`endif
+
+wire [23:0] adpcmb_addr_full;
+
+`ifndef NOSOUND
+jtshadfrce_snd u_snd(
+    .rst        ( rst               ),
+    .clk        ( clk               ),
+    .snd_latch  ( snd_latch         ),
+    .snd_stb    ( snd_stb           ),
+    .snd_addr   ( snd_addr          ),
+    .snd_cs     ( snd_cs            ),
+    .snd_data   ( snd_data          ),
+    .snd_ok     ( snd_ok            ),
+    .adpcma_addr( adpcma_addr       ),
+    .adpcma_cs  ( adpcma_cs         ),
+    .adpcma_data( adpcma_data       ),
+    .adpcma_ok  ( adpcma_ok         ),
+    .adpcmb_addr( adpcmb_addr_full  ),
+    .adpcmb_cs  ( adpcmb_cs         ),
+    .adpcmb_data( adpcmb_data       ),
+    .adpcmb_ok  ( adpcmb_ok         ),
+    .snd_left   ( snd_left          ),
+    .snd_right  ( snd_right         ),
+    .sample     ( sample            ),
+    .debug_bus  ( debug_bus         )
+);
+assign adpcmb_addr = adpcmb_addr_full[18:0];
+`else
+assign snd_left    = 0;
+assign snd_right   = 0;
+assign sample      = 0;
+assign snd_cs      = 0;
+assign snd_addr    = 0;
+assign adpcma_cs   = 0;
+assign adpcma_addr = 0;
+assign adpcmb_cs   = 0;
+assign adpcmb_addr = 0;
+`endif
 
 endmodule

@@ -14,52 +14,180 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 28-03-2026 */
+    Date: 29-3-2026 */
 
 module jtatari_batman_main(
-    input           clk,
-    input           rst,
-    output          cpu_cen,
-    input    [23:1] cpu_addr,
-    input    [15:0] cpu_din,
-    output   [15:0] cpu_dout,
-    input           cpu_rnw,
-    input           cpu_dtack,
-    output          cpu_irq,
+    input                rst,
+    input                clk,
+    input                LVBL,
 
-    // ROM interface
-    output          rom_cs,
-    output   [19:0] rom_addr,
-    input    [15:0] rom_data,
+    // SDRAM ROM
+    output        [19:1] main_addr,
+    output reg           rom_cs,
+    input         [15:0] rom_data,
+    input                rom_ok,
 
-    // RAM interface
-    output          ram_cs,
-    output   [17:0] ram_addr,
-    output   [15:0] ram_din,
-    output          ram_we,
-    input    [15:0] ram_dout,
+    // CPU Work RAM (BRAM — wrapper handles address/data automatically)
+    output        [ 1:1] ram_addr,  // Stub: not used, BRAM address is automatic
+    output               ram_we,    // Stub: not used
+    output        [ 1:0] dsn,
+    output        [15:0] main_dout,
+    output               cpu_rnw,
+    output reg           wram_cs,   // Triggers BRAM selection
+    input         [15:0] ram_dout,  // BRAM read data (main_dout from wrapper)
+    input                ram_ok,    // Stub: BRAM is always ready
 
-    // Palette interface
-    output          pal_cs,
-    output   [11:0] pal_addr,
-    output          pal_we,
-    output   [15:0] pal_din,
-    input    [15:0] pal_dout,
+    // CPU bus (for video BRAMs in game.v)
+    output reg           spr_cs,
+    output reg           pal_cs,
+    output reg           main_cs,
 
-    // Sprite interface
-    output          spr_cs,
-    output   [11:0] spr_addr,
-    output          spr_we,
-    output   [15:0] spr_din,
-    input    [15:0] spr_dout,
+    // Video RAM read-back (from generated BRAM ports)
+    input         [15:0] ms_dout,   // CPU-side sprite read
+    input         [15:0] mp_dout,   // CPU-side palette read
+    input         [15:0] mm_dout,   // CPU-side main RAM read (from main BRAM)
 
-    // Sound interface
-    output          snd_cs,
-    output   [7:0]  snd_latch,
-    output          snd_stb,
-    input           snd_flag
+    // I/O
+    input         [ 5:0] joystick1,
+    input         [ 5:0] joystick2,
+    input         [15:0] dipsw,
+    input                dip_pause,
+
+    // Sound
+    output reg    [ 7:0] snd_latch,
+    output reg           snd_stb
 );
 
-// TODO: Implement 68000 main CPU logic
+`ifndef NOMAIN
+wire [23:1] A;
+wire        cpu_cen, cpu_cenb;
+wire        UDSn, LDSn, RnW, ASn, VPAn, DTACKn, BUSn;
+wire [ 2:0] FC, IPLn;
+wire [15:0] cpu_dout;
+reg  [15:0] cpu_din;
+reg         io_cs, sndlatch_cs, clr_int;
+wire        intn, bus_cs, bus_busy;
 
+`ifdef SIMULATION
+wire [23:0] A_full = {A, 1'b0};
+`endif
+
+assign main_addr = A[19:1];
+assign ram_addr  = 1'b0;  // Stub: BRAM address is automatic
+assign main_dout = cpu_dout;
+assign cpu_rnw   = RnW;
+assign dsn       = {UDSn, LDSn};
+assign ram_we    = 1'b0;  // Stub: BRAM write is automatic
+assign BUSn      = ASn | (LDSn & UDSn);
+assign IPLn      = intn ? 3'b111 : 3'b011;   // level 4 when active
+assign VPAn      = ~(!ASn && FC == 3'b111);
+assign bus_cs    = rom_cs | wram_cs;
+assign bus_busy  = (rom_cs & ~rom_ok);
+
+// Address decode — combinational
+always @* begin
+    rom_cs      = !ASn  && A[23:20] == 4'h0;
+    spr_cs      = !BUSn && A[23:12] == 12'b0010_0000_0000;  // 0x200000-0x200FFF
+    pal_cs      = !BUSn && A[23:12] == 12'b0011_0000_0000;  // 0x300000-0x300FFF
+    main_cs     = !BUSn && A[23:12] == 12'b0100_0000_0000;  // 0x400000-0x400FFF
+    io_cs       = !BUSn && A[23:4]  == 20'hC0000;
+    sndlatch_cs = !BUSn && A[23:2]  == 22'h300004 && !RnW;
+    wram_cs     = !BUSn && A[23:17] == 7'b1111_111;  // Main BRAM work RAM
+    clr_int     = io_cs && !RnW;   // any IO write clears interrupt
+end
+
+// Sound latch capture
+always @(posedge clk) begin
+    if (rst) begin
+        snd_latch <= 8'h0;
+        snd_stb   <= 0;
+    end else begin
+        snd_stb <= sndlatch_cs;
+        if (sndlatch_cs)
+            snd_latch <= cpu_dout[7:0];
+    end
+end
+
+// Data input mux
+always @(posedge clk) begin
+    cpu_din <= rom_cs   ? rom_data :
+               wram_cs  ? mm_dout  :  // Main BRAM read
+               spr_cs   ? ms_dout  :
+               pal_cs   ? mp_dout  :
+               main_cs  ? mm_dout  :
+               io_cs    ? (A[3:1]==3'd0 ? {8'hFF, joystick1}             :
+                           A[3:1]==3'd1 ? {8'hFF, joystick2}             :
+                           A[3:1]==3'd2 ? {dipsw[14:8], LVBL, dipsw[7:0]} :
+                                          16'hFFFF) :
+                          16'hFFFF;
+end
+
+// VBLANK falling-edge interrupt
+jtframe_edge #(.QSET(0)) u_vbl(
+    .rst    ( rst      ),
+    .clk    ( clk      ),
+    .edgeof ( ~LVBL    ),
+    .clr    ( clr_int  ),
+    .q      ( intn     )
+);
+
+// 6.144 MHz clock enable from 48 MHz: num=192, den=1500
+jtframe_68kdtack_cen #(.W(11)) u_dtack(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .cpu_cen    ( cpu_cen       ),
+    .cpu_cenb   ( cpu_cenb      ),
+    .bus_cs     ( bus_cs        ),
+    .bus_busy   ( bus_busy      ),
+    .bus_legit  ( 1'b0          ),
+    .bus_ack    ( 1'b0          ),
+    .ASn        ( ASn           ),
+    .DSn        ( {UDSn, LDSn}  ),
+    .num        ( 11'd192       ),
+    .den        ( 11'd1500      ),
+    .DTACKn     ( DTACKn        ),
+    .wait2      ( 1'b0          ),
+    .wait3      ( 1'b0          ),
+    .fave       (               ),
+    .fworst     (               )
+);
+
+jtframe_m68k u_cpu(
+    .clk        ( clk           ),
+    .rst        ( rst           ),
+    .RESETn     (               ),
+    .cpu_cen    ( cpu_cen       ),
+    .cpu_cenb   ( cpu_cenb      ),
+
+    .eab        ( A             ),
+    .iEdb       ( cpu_din       ),
+    .oEdb       ( cpu_dout      ),
+
+    .eRWn       ( RnW           ),
+    .LDSn       ( LDSn          ),
+    .UDSn       ( UDSn          ),
+    .ASn        ( ASn           ),
+    .VPAn       ( VPAn          ),
+    .FC         ( FC            ),
+
+    .BERRn      ( 1'b1          ),
+    .HALTn      ( dip_pause     ),
+    .BRn        ( 1'b1          ),
+    .BGACKn     ( 1'b1          ),
+    .BGn        (               ),
+
+    .DTACKn     ( DTACKn        ),
+    .IPLn       ( IPLn          )
+);
+`else
+initial begin
+    rom_cs = 0; wram_cs = 0;
+    spr_cs = 0; pal_cs = 0; main_cs = 0;
+    snd_latch = 0;
+    snd_stb = 0;
+end
+assign main_addr = 0;
+assign main_dout = 0; assign dsn = 0;
+assign cpu_rnw = 1;
+`endif
 endmodule

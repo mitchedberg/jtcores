@@ -16,7 +16,7 @@
     Version: 1.0
     Date: 2026-03-28 */
 
-// V-Five: Z80 @ 4 MHz + YM2151
+// Toaplan V-Five: Z80 @ 4 MHz + YM2151 sound module
 
 module jttoaplan_vf_snd(
     input             rst,

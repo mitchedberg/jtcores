@@ -14,9 +14,10 @@
 
     Author: Jose Tejada Gomez. Twitter: @topapate
     Version: 1.0
-    Date: 2026-03-28 */
+    Date: 28-3-2026 */
 
 // Hyper Duel Z80 + YM2151 + OKI M6295 sound module
+// Z80 @ 4 MHz, clock enable generated from 48 MHz system clock
 
 module jthyprduel_snd(
     input             rst,
@@ -38,21 +39,22 @@ module jthyprduel_snd(
 );
 
 `ifndef NOSOUND
-// --- Clock enable: 48 MHz / 6 = 8 MHz ---
-reg [2:0] cen_cnt;
-reg       cen8;
+
+// --- Clock enable: 48 MHz / 12 = 4 MHz ---
+reg [3:0] cen_cnt;
+reg       cen4;
 
 always @(posedge clk) begin
     if (rst) begin
         cen_cnt <= 0;
-        cen8    <= 0;
+        cen4    <= 0;
     end else begin
-        cen8 <= 0;
-        if (cen_cnt == 3'd5) begin
+        cen4 <= 0;
+        if (cen_cnt == 4'd11) begin
             cen_cnt <= 0;
-            cen8    <= 1;
+            cen4    <= 1;
         end else begin
-            cen_cnt <= cen_cnt + 3'd1;
+            cen_cnt <= cen_cnt + 4'd1;
         end
     end
 end
@@ -78,83 +80,87 @@ wire        ym2151_irq_n;
 // --- OKI internal signals ---
 wire [ 7:0] oki_dout;
 
-// --- Memory decode ---
+// --- Memory decode (combinational) ---
 always @(*) begin
     macc_n      =  mreq_n | ~rfsh_n;
-    rom_cs      = ~mreq_n && !A[15] && !rfsh_n;
-    ram_cs      = ~mreq_n && A[15] && !rfsh_n;
-    ym2151_cs   = ~iorq_n && !rfsh_n && A[7:0] >= 8'h00 && A[7:0] < 8'h04;
-    oki_cs      = ~iorq_n && !rfsh_n && A[7:0] >= 8'h04 && A[7:0] < 8'h08;
-    latch_rd    = ~iorq_n && !rd_n && A[7:0] == 8'h08;
+    rom_cs      = !macc_n && !A[15];
+    ram_cs      = !macc_n &&  A[15] && A[14:9] == 6'b000000; // 0x8000-0x81FF
+    ym2151_cs   = !iorq_n && !rfsh_n && A[7:0] >= 8'h00 && A[7:0] < 8'h04;
+    oki_cs      = !iorq_n && !rfsh_n && A[7:0] >= 8'h04 && A[7:0] < 8'h08;
+    latch_rd    = !iorq_n && !rd_n  && A[7:0] == 8'h08;
 end
 
-// --- Z80 CPU instantiation ---
-jtframe_z80 cpu(
-    .rst_n(~rst),
-    .clk(clk),
-    .cen(cen8),
-    .wait_n(~(rom_cs & ~snd_ok)),
-    .int_n(nmi_n),
-    .nmi_n(1'b1),
-    .busrq_n(1'b1),
-    .A(A),
-    .mreq_n(mreq_n),
-    .iorq_n(iorq_n),
-    .rd_n(rd_n),
-    .wr_n(wr_n),
-    .rfsh_n(rfsh_n),
-    .halt_n(),
-    .busak_n(),
-    .dout(cpu_dout),
-    .din(cpu_din)
+// --- ROM address mux ---
+assign snd_addr = rom_cs ? A[15:0] : 16'd0;
+assign snd_cs   = rom_cs;
+
+// --- CPU data mux (registered, matching psikyo pattern) ---
+always @(posedge clk) begin
+    case (1'b1)
+        rom_cs:     cpu_din <= snd_data;
+        ym2151_cs:  cpu_din <= ym2151_dout;
+        oki_cs:     cpu_din <= oki_dout;
+        latch_rd:   cpu_din <= snd_latch;
+        ram_cs:     cpu_din <= ram_dout;
+        default:    cpu_din <= 8'hff;
+    endcase
+end
+
+// --- NMI: set on snd_stb, clear on latch_rd ---
+always @(posedge clk) begin
+    if (rst)
+        nmi_n <= 1'b1;
+    else if (snd_stb)
+        nmi_n <= 1'b0;
+    else if (latch_rd)
+        nmi_n <= 1'b1;
+end
+
+// --- Z80 CPU ---
+jtframe_sysz80 #(.RAM_AW(9), .RECOVERY(0)) u_cpu(
+    .rst_n   ( ~rst      ),
+    .clk     ( clk       ),
+    .cen     ( cen4      ),
+    .cpu_cen (           ),
+    .int_n   ( ym2151_irq_n ),
+    .nmi_n   ( nmi_n     ),
+    .busrq_n ( 1'b1      ),
+    .m1_n    (           ),
+    .mreq_n  ( mreq_n    ),
+    .iorq_n  ( iorq_n    ),
+    .rd_n    ( rd_n      ),
+    .wr_n    ( wr_n      ),
+    .rfsh_n  ( rfsh_n    ),
+    .halt_n  (           ),
+    .busak_n (           ),
+    .A       ( A         ),
+    .cpu_din ( cpu_din   ),
+    .cpu_dout( cpu_dout  ),
+    .ram_dout( ram_dout  ),
+    .ram_cs  ( ram_cs    ),
+    .rom_cs  ( snd_cs    ),
+    .rom_ok  ( snd_ok    )
 );
 
-// --- CPU data input mux ---
-always @* begin
-    if ( rom_cs )
-        cpu_din = snd_data;
-    else if ( ram_cs )
-        cpu_din = ram_dout;
-    else if ( ym2151_cs )
-        cpu_din = ym2151_dout;
-    else if ( oki_cs )
-        cpu_din = oki_dout;
-    else if ( latch_rd )
-        cpu_din = snd_latch;
-    else
-        cpu_din = 8'hFF;
-end
+// --- Dummy YM2151 output ---
+assign ym2151_dout = 8'h00;
+assign ym2151_irq_n = 1'b1;
 
-// --- Sound latch handling ---
-always @(posedge clk) begin
-    if (rst) begin
-        latch_ack <= 1'b0;
-        nmi_n <= 1'b1;
-    end else begin
-        if (snd_stb)
-            latch_ack <= 1'b1;
-        else if (latch_rd)
-            latch_ack <= 1'b0;
-        
-        nmi_n <= ~latch_ack;
-    end
-end
+// --- Dummy OKI output ---
+assign oki_dout = 8'h00;
 
-// --- Memory connections ---
-assign snd_addr    = A[15:0];
-assign snd_cs      = rom_cs;
-
-// --- Dummy audio output ---
-assign sample      = 1'b0;
+// --- Audio output (stub) ---
 assign snd_left    = 16'h0000;
 assign snd_right   = 16'h0000;
+assign sample      = 1'b0;
 
 `else
-assign snd_addr = 16'h0;
-assign snd_cs = 1'b0;
-assign sample = 1'b0;
-assign snd_left = 16'h0;
-assign snd_right = 16'h0;
+// NOSOUND stub — all outputs driven to safe defaults
+assign snd_left    = 16'd0;
+assign snd_right   = 16'd0;
+assign sample      = 1'b0;
+assign snd_cs      = 1'b0;
+assign snd_addr    = 16'd0;
 `endif
 
 endmodule
