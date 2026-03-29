@@ -3,8 +3,6 @@ toaplan_vf:
     - jttoaplan_vf_game.v
     - jttoaplan_vf_main.v
     - jttoaplan_vf_snd.v
-    - jttoaplan_vf_main.v
-    - jttoaplan_vf_snd.v
 jtframe:
   - get:
     - jtframe_edge.v
@@ -14,10 +12,10 @@ jtframe:
       - jtframe_blank.v
   - from: cpu
     get:
+      - jtframe_m68k.yaml
       - jtframe_z80.yaml
-  - from: ram
+  - from: clocking
     get:
-      - jtframe_dual_ram.v
-      - jtframe_dual_ram16.v
+      - jtframe_frac_cen.v
 jt51:
 jt6295:

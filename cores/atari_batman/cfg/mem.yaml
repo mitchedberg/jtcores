@@ -1,4 +1,5 @@
 params:
+  - { name: ADPCM_OFFSET, value: "(`JTFRAME_BA2_START-`JTFRAME_BA1_START)>>1" }
   - { name: RAM_OFFSET, value: "22'h20_0000" }
 sdram:
   banks:
@@ -13,7 +14,7 @@ sdram:
       - name: adpcm
         addr_width: 21
         data_width: 8
-        offset: "(`JTFRAME_BA2_START-`JTFRAME_BA1_START)>>1"
+        offset: ADPCM_OFFSET
     - buses:
       - name: gfx0
         addr_width: 21

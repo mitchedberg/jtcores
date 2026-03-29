@@ -154,25 +154,21 @@ jtframe_sysz80 #(.RAM_AW(9), .RECOVERY(0)) u_cpu(
 );
 
 // --- YM2151 ---
-jt12 u_ym2151(
+jt51 u_ym2151(
     .rst          ( rst              ),
     .clk          ( clk              ),
     .cen          ( cen4             ),
     .din          ( cpu_dout         ),
-    .addr         ( A[1:0]           ),
+    .a0           ( A[0]             ),
     .cs_n         ( ~ym_cs           ),
     .wr_n         ( wr_n             ),
     .dout         ( ym_dout          ),
     .irq_n        ( ym_irq_n         ),
-    .psg_A        (                  ),
-    .psg_B        (                  ),
-    .psg_C        (                  ),
-    .fm_snd       (                  ),
-    .psg_snd      (                  ),
-    .snd_right    ( snd_right        ),
-    .snd_left     ( snd_left         ),
-    .snd_sample   ( sample           ),
-    .ch_enable    ( 8'hff            )
+    .ct1          (                  ),
+    .ct2          (                  ),
+    .xleft        ( snd_left         ),
+    .xright       ( snd_right        ),
+    .sample       ( sample           )
 );
 
 `else
