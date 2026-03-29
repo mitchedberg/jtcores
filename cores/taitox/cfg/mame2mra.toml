@@ -1,0 +1,20 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "taito/taito_x.cpp" ]
+
+[buttons]
+names=[
+    { names="Shot,Bomb" }
+]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true, no_offset=true },
+    { name="audiocpu", start="JTFRAME_BA1_START" },
+    { name="ymsnd:adpcma", start="ADPCMA_START" },
+    { name="ymsnd:adpcmb", start="ADPCMB_START" },
+    { name="gfx1", start="JTFRAME_BA2_START", width=16, no_offset=true }
+]
+order = [ "maincpu", "audiocpu", "ymsnd:adpcma", "ymsnd:adpcmb", "gfx1" ]

@@ -1,0 +1,21 @@
+toapv2:
+  - get:
+    - jttoapv2_game.v
+    - jttoapv2_main.v
+    - jttoapv2_snd.v
+    - jttoapv2_video.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v
+jt51:
+jt6295:

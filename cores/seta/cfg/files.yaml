@@ -1,0 +1,17 @@
+seta:
+  - get:
+    - jtseta_game.v
+    - jtseta_main.v
+    - jtseta_snd.v
+    - jtseta_video.v
+jtframe:
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v

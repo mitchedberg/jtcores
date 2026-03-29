@@ -1,0 +1,31 @@
+params:
+  - { name: RAM_OFFSET, value: "22'h10_0000" }
+  - { name: ADPCMA_OFFSET, value: "(`ADPCMA_START-`JTFRAME_BA1_START)>>1" }
+  - { name: ADPCMB_OFFSET, value: "(`ADPCMB_START-`JTFRAME_BA1_START)>>1" }
+sdram:
+  banks:
+    - buses:
+      - name: ram
+        addr_width: 16
+        data_width: 16
+        rw: true
+        offset: RAM_OFFSET
+      - name: main
+        addr_width: 19
+        data_width: 16
+    - buses:
+      - name: snd
+        addr_width: 17
+        data_width: 8
+      - name: adpcma
+        addr_width: 20
+        data_width: 8
+        offset: ADPCMA_OFFSET
+      - name: adpcmb
+        addr_width: 19
+        data_width: 8
+        offset: ADPCMB_OFFSET
+    - buses:
+      - name: gfx
+        addr_width: 22
+        data_width: 32

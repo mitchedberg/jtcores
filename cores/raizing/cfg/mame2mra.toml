@@ -1,0 +1,19 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "toaplan/raizing.cpp" ]
+
+[buttons]
+names=[
+    { names="Shot,Bomb,Special" }
+]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true, no_offset=true },
+    { name="audiocpu", start="JTFRAME_BA1_START" },
+    { name="oki1", start="JTFRAME_BA2_START" },
+    { name="gfx1", start="JTFRAME_BA3_START", width=16, no_offset=true }
+]
+order = [ "maincpu", "audiocpu", "oki1", "gfx1" ]

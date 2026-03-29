@@ -1,0 +1,20 @@
+nmk16:
+  - get:
+    - jtnmk16_game.v
+    - jtnmk16_main.v
+    - jtnmk16_video.v
+    - jtnmk16_snd.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v
+jt6295:

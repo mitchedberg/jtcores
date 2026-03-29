@@ -1,0 +1,20 @@
+kaneko16:
+  - get:
+    - jtkaneko16_game.v
+    - jtkaneko16_main.v
+    - jtkaneko16_snd.v
+    - jtkaneko16_video.v
+jtframe:
+  - get:
+    - jtframe_edge.v
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v
+jt6295:

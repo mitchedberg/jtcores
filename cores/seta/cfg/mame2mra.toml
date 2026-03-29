@@ -1,0 +1,18 @@
+[global]
+author=["community"]
+
+[parse]
+sourcefile=[ "seta/seta.cpp" ]
+
+[buttons]
+names=[
+    { names="Shot,Special" }
+]
+
+[ROM]
+regions = [
+    { name="maincpu", width=16, reverse=true, no_offset=true },
+    { name="x1snd", start="JTFRAME_BA1_START" },
+    { name="gfx1", start="JTFRAME_BA2_START", width=16, no_offset=true }
+]
+order = [ "maincpu", "x1snd", "gfx1" ]

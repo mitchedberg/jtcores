@@ -1,0 +1,26 @@
+params:
+  - { name: RAM_OFFSET, value: "22'h10_0000" }
+  - { name: OKI_OFFSET, value: "(`JTFRAME_BA2_START-`JTFRAME_BA1_START)>>1" }
+sdram:
+  banks:
+    - buses:
+      - name: ram
+        addr_width: 16
+        data_width: 16
+        rw: true
+        offset: RAM_OFFSET
+      - name: main
+        addr_width: 20
+        data_width: 16
+    - buses:
+      - name: gfx
+        addr_width: 23
+        data_width: 32
+    - buses:
+      - name: snd
+        addr_width: 16
+        data_width: 8
+      - name: oki
+        addr_width: 20
+        data_width: 8
+        offset: OKI_OFFSET
