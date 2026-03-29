@@ -25,6 +25,29 @@ Append new findings at the top. Read before debugging any issue.
 
 ---
 
+## 2026-03-29: Psikyo Gunbird video hardware spec — MAME verified
+
+**Source:** `src/mame/psikyo/psikyo.cpp` + `psikyo_v.cpp`
+
+**CPU map (68000):**
+- ROM: 0x000000-0x0FFFFF (1MB)
+- Sprite RAM: 0x400000-0x401FFF (8KB, double-buffered)
+- Palette: 0x600000-0x601FFF (8KB, xRGB_555, 4096 entries)
+- BG VRAM layer 0: 0x800000-0x801FFF; layer 1: 0x802000-0x803FFF
+- Video regs + RAM: 0x804000-0x807FFF
+- I/O: 0xC00000-0xC00013
+- Work RAM: 0xFE0000-0xFFFFFF (128KB)
+
+**BG layers:** 2 layers, 16×16 tiles, 4bpp packed_msb (same as NMK16). Scroll regs inside 0x804000 region at fixed offsets.
+
+**Sprites:** 8 bytes per sprite (2×32-bit dwords). Dword0: zoom+position. Dword1: flipX/Y, color(4-bit), priority(2-bit), code(17-bit). **CRITICAL: sprite code goes through a LUT ROM — raw code is NOT a direct GFX address**. Needs separate LUT BRAM/ROM.
+
+**Palette:** xRGB_555 (same as Toaplan V2), COLORW=5.
+
+**VBLANK:** IPL level 4 (same as Raizing/Toaplan V2).
+
+**GFX format:** 16×16 4bpp packed_msb for both sprites and tiles.
+
 ## 2026-03-29: Battle Garegga (Raizing) hardware spec — MAME verified
 
 Source: `src/mame/toaplan/raizing.cpp` (no raizing/ subdir; lives under toaplan/).
