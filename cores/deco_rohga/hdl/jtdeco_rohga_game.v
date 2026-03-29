@@ -17,36 +17,7 @@
 */
 
 module jtdeco_rohga_game(
-    input           rst,
-    input           clk,
-
-    // cabinet I/O
-    input   [ 1:0]  start_button,
-    input   [ 1:0]  coin_input,
-    input   [ 5:0]  joystick1,
-    input   [ 5:0]  joystick2,
-    input   [11:0]  service,
-
-    output          led,
-    output  [ 7:0]  dip_flip,
-
-    // SDRAM interface
-    input           downloading,
-    input           dwnld_busy,
-
-    // video
-    output  [11:0]  gg_red,
-    output  [11:0]  gg_green,
-    output  [11:0]  gg_blue,
-    output          gg_en,
-    output          gg_hs,
-    output          gg_vs,
-    output          gg_f1,
-
-    // audio
-    output  signed  [15:0] snd_left,
-    output  signed  [15:0] snd_right,
-    output          snd_sample
+    `include "jtframe_game_ports.inc"
 );
 
 assign gg_red   = 12'h0;

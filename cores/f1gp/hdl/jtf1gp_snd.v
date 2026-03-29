@@ -101,8 +101,8 @@ jtframe_z80 cpu(
     .rfsh_n(rfsh_n),
     .halt_n(),
     .busak_n(),
-    .Dout(cpu_dout),
-    .Din(cpu_din)
+    .dout(cpu_dout),
+    .din(cpu_din)
 );
 
 // --- CPU data input mux ---

@@ -16,7 +16,7 @@
     Version: 1.0
     Date: 28-3-2026 */
 
-module jtkonami_ssriders_game(
+module jtkonami_ssr_game(
     `include "jtframe_game_ports.inc"
 );
 

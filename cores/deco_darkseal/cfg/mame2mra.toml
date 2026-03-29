@@ -17,7 +17,7 @@ regions = [
     { name="maincpu", width=16, reverse=true, no_offset=true },
     { name="audiocpu", start="JTFRAME_BA1_START" },
     { name="gfx1", start="JTFRAME_BA2_START", width=16, no_offset=true },
-    { name="gfx3", start="0x480000", width=32, no_offset=true }
+    { name="gfx3", start="JTFRAME_BA3_START", width=32, no_offset=true }
 ]
 
 order = [

@@ -169,7 +169,7 @@ jt51 u_ym2151(
     .clk      ( clk          ),
     .cen      ( cen_snd      ),
     .din      ( cpu_dout     ),
-    .addr     ( A[0]         ),
+    .a0       ( A[0]         ),
     .cs_n     ( ~ym_cs       ),
     .wr_n     ( wr_n         ),
     .dout     ( ym_dout      ),

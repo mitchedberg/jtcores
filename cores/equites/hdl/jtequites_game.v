@@ -17,10 +17,8 @@
     Date: 29-3-2026 */
 
 module jtequites_game(
-    `include "jtframe_game_ports.svh"
-    /* jtframe_mem_ports */
+    `include "jtframe_game_ports.inc"
 );
-`include "mem_ports.inc"
 
 // Inter-module wires
 wire [ 7:0] snd_latch;

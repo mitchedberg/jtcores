@@ -3,14 +3,14 @@ params:
 sdram:
   banks:
     - buses:
-      - name: main
-        addr_width: 20
-        data_width: 16
       - name: ram
         addr_width: 17
         data_width: 16
         rw: true
         offset: RAM_OFFSET
+      - name: main
+        addr_width: 20
+        data_width: 16
     - buses:
       - name: snd
         addr_width: 17

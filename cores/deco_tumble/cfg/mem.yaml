@@ -1,5 +1,5 @@
 params:
-  - { name: RAM_OFFSET, value: "20'h12_0000" }
+  - { name: RAM_OFFSET, value: "22'h12_0000" }
 sdram:
   banks:
     - buses:

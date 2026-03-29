@@ -26,6 +26,10 @@ sdram:
         addr_width: 19
         data_width: 32
         offset: GFX_OFFSET
+    - buses:
+      - name: gfx3
+        addr_width: 18
+        data_width: 32
 bram:
   - name: spr
     addr_width: 11
