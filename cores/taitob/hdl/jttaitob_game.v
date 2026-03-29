@@ -155,6 +155,10 @@ assign vcu_cpu_addr_w = vcu_cpu_addr[15:1];
 //   obj_addr  [19:2]   — 32-bit bus, JTFRAME addr_width=20 → bits [19:2]
 // =====================================================================
 
+// Joystick: JTFRAME_BUTTONS=2 → [5:0]; tc0220ioc needs [7:0]
+wire [7:0] joy1_8 = {2'b00, joystick1};
+wire [7:0] joy2_8 = {2'b00, joystick2};
+
 // Main-module-side address wires (wider than JTFRAME ports)
 wire [18:1] main_addr_full_w;
 wire [14:1] ram_addr_full_w;
@@ -304,8 +308,8 @@ tc0220ioc u_ioc(
     .din          ( ioc_dout_main    ),
     .dout         ( ioc_din          ),
     .we           ( ioc_we           ),
-    .joystick1    ( { 2'b00, joystick1 } ),
-    .joystick2    ( { 2'b00, joystick2 } ),
+    .joystick1    ( joy1_8             ),
+    .joystick2    ( joy2_8             ),
     .start_button ( cab_1p[1:0]      ),
     .coin_input   ( coin[1:0]        ),
     .service      ( service          ),
