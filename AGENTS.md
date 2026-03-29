@@ -40,9 +40,10 @@ Multiple agents work in this repo. Check `.shared/` at session start:
 - `.shared/status.md` — write your current status so others know what you're working on
 
 ## Pending Tasks (pick one up if you have no inbox)
-- `.shared/inbox_nmk16.md` — NMK16: verify sprite attribute layout + scroll register vs MAME
+- `.shared/inbox_nmk16.md` — NMK16: 100-frame sim diagnostics + BG VRAM write analysis
 - `.shared/inbox_toapv2.md` — Toaplan V2: research GP9001 sprite format for implementation
-- `.shared/inbox_raizing.md` — Raizing: scaffold jtraizing core + CPU boot (battle garegga)
+- `.shared/inbox_raizing.md` — Raizing: lint check + address decode verify + 30-frame sim
+- `.shared/inbox_psikyo.md` — **Psikyo (HIGH PRIORITY)**: implement BG tile rendering (2 layers, chunky2planar, palette)
 
 ## Key Paths
 - `cores/*/hdl/` — per-core HDL modules
