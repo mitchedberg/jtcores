@@ -19,8 +19,5 @@ jtframe:
       - jtframe_frac_cen.v
 jtopl:
   - get:
-    - jtopl_top.v
-    - jtopl.yaml
+    - jt26.yaml
 jt6295:
-  - get:
-    - jt6295.v

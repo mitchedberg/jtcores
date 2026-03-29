@@ -1,0 +1,18 @@
+taitob:
+  - get:
+    - jttaitob_game.v
+    - jttaitob_main.v
+    - jttaitob_colmix.v
+    - tc0180vcu.v
+    - tc0220ioc.v
+jtframe:
+  - from: video
+    get:
+      - jtframe_vtimer.v
+      - jtframe_blank.v
+  - from: cpu
+    get:
+      - jtframe_m68k.yaml
+  - from: ram
+    get:
+      - jtframe_obj_buffer.v
