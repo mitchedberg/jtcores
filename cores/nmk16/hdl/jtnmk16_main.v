@@ -78,6 +78,7 @@ reg  [15:0] cpu_din;
 reg         clr_int;
 wire        intn, bus_cs, bus_busy;
 reg         sprite_fix;
+reg  [15:0] snd_mailbox_written;  // last value written to RAM[0x0B9008]; used by mailbox stub
 assign main_addr  = A[17:1];
 assign ram_addr   = A[15:1];
 assign ram_din    = cpu_dout;
@@ -127,12 +128,23 @@ always @(posedge clk) begin
     end
 end
 
+// Track last value written to the sound mailbox (RAM[0x0B9008])
+// Used by the stub below to distinguish RAM self-test writes (0xFFFF) from real sound commands.
+always @(posedge clk) begin
+    if (rst)
+        snd_mailbox_written <= 16'h0000;
+    else if (ram_cs && !RnW && A[15:1]==15'h4804)
+        snd_mailbox_written <= cpu_dout;
+end
+
 // Data input mux
 // Sound mailbox stub: return 0 on reads to RAM[0x0B9008] (word addr A[15:1]==0x4804)
-// This prevents the 68000 from stalling waiting for NMK004 to acknowledge the sound command.
+// Only stubs when last write was NOT 0xFFFF (the RAM self-test pattern).
+// During boot RAM test: CPU writes 0xFFFF → stub inactive → real RAM data returned → test passes.
+// During sound polling: CPU writes a real command (non-0xFFFF) → stub returns 0 → CPU unblocks.
 always @(posedge clk) begin
     cpu_din <= main_cs  ? main_data  :
-              ram_cs   ? (A[15:1]==15'h4804 ? 16'h0000 : ram_data) :
+              ram_cs   ? (A[15:1]==15'h4804 && snd_mailbox_written != 16'hFFFF ? 16'h0000 : ram_data) :
               pal_cs   ? mp_dout    :
               bgvram_cs ? mbg_dout  :
               fgvram_cs ? mfg_dout  :
