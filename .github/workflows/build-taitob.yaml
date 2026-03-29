@@ -1,0 +1,38 @@
+name: Build jttaitob
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [psikyo-gunbird, master]
+    paths:
+      - 'cores/taitob/**'
+      - '.github/workflows/build-taitob.yaml'
+
+jobs:
+  compile_taitob:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+      - name: Init public submodules only
+        run: |
+          for mod in modules/fx68k modules/jt12 modules/jt51 modules/jt5205 modules/jtkcpu modules/jtopl modules/jtframe; do
+            echo "=== Initializing $mod ==="
+            git submodule update --init "$mod" 2>&1 || echo "SKIPPED $mod (probably private)"
+          done
+          cd modules/jt12 && git submodule update --init --recursive 2>&1 || true
+          cd ../..
+          echo "=== Verification ==="
+          ls -la modules/jtframe/hdl/sdram/jtframe_sdram64.v && echo "jtframe OK"
+          ls -la modules/jt12/cfg/jt03.yaml && echo "jt12 OK"
+      - id: compile
+        run: |
+          docker run --network host -v $(pwd):/jtcores jotego/jtcore20 /jtcores/modules/jtframe/devops/xjtcore.sh taitob mister
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jttaitob-mister
+          path: release
+          retention-days: 7
