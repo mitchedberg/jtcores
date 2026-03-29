@@ -2,12 +2,6 @@ module jtatari_xybots_game(
     `include "jtframe_game_ports.inc"
 );
 
-// Internal signals
-wire pal_cs, cpu_rnw;
-wire [15:0] ram_din, snd2_data, ram_data, main_data;
-wire [ 7:0] snd_data;
-wire        ram_ok, snd_ok, main_ok, snd2_ok;
-wire [15:0] mp_dout;
 wire        sample, mute;
 
 assign pal_we = pal_cs ? {2{~cpu_rnw}} & ~ram_dsn : 2'b00;

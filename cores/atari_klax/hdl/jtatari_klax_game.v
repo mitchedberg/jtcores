@@ -28,24 +28,6 @@ module jtatari_klax_game #(
     `include "jtframe_game_ports.inc"
 );
 
-// Stub wires for missing memory ports
-wire [15:0] ram_dout, vram0_dout, vram1_dout, spr_dout, pal_dout;
-wire [12:0] ram_addr;
-wire [11:0] vram0_addr;
-wire [11:0] vram1_addr;
-wire [10:0] spr_addr;
-wire        ram_we, vram0_we, vram1_we, spr_we, pal_we;
-wire [15:0] ram_din, mp_dout;
-wire        ram_cs, ram_ok;
-wire [ 1:0] ram_dsn;
-wire [15:0] ram_data;
-wire [ 7:0] snd2_data;
-wire        snd2_cs, snd2_ok;
-wire [11:0] snd2_addr;
-wire [14:0] snd_addr;
-wire [ 7:0] snd_data;
-wire        snd_cs, snd_ok;
-
 // Placeholder: connect outputs to 0 to prevent linting errors
 assign pxl_cen      = 1'b0;
 assign pxl2_cen     = 1'b0;
