@@ -194,20 +194,21 @@ endgenerate
 wire [16:0] bg_rom_addr;
 wire        bg_rom_cs;
 wire  [7:0] bg_pxl;       // {pal[3:0], pixel[3:0]}
-reg   [7:0] fg_pxl;
-reg         fg_opaque;
 wire [11:1] spr_ram_addr;
 wire [15:0] spr_ram_q;
 wire  [7:0] spr_pxl;
 wire        spr_opaque = spr_pxl[3:0] != 4'hF;
 wire [12:1] cpu_spr_addr = cpu_addr[12:1];
 wire        spr_we = sprite_cs & ~cpu_rnw;
-reg  [15:0] fg_tile_entry_r;
-reg   [2:0] fg_row_in_tile_r;
-reg   [2:0] fg_pixel_col_r;
-reg   [3:0] fg_palette_r;
-reg   [2:0] fg_pixel_col_req_r;
-wire  [4:0] fg_nibble_base = 5'd31 - { fg_pixel_col_req_r, 2'b00 };
+// FG renderer state — fire ROM once per tile (every 8 pixels)
+reg  [31:0] fg_row_latch;    // latched 32-bit row from FG ROM (8 pixels × 4 bits)
+reg   [3:0] fg_palette_r;    // palette for in-flight request
+reg   [3:0] fg_palette_latch;// palette for displayed tile (committed on fg_ok)
+// Pixel extraction: col=0→bits[31:28], col=1→[27:24], ..., col=7→[3:0]
+wire  [4:0] fg_nibble = { hdump[2:0], 2'b00 }; // 0,4,8,..,28
+wire  [3:0] fg_pen    = fg_row_latch[5'd31 - fg_nibble -: 4];
+wire  [7:0] fg_pxl    = { fg_palette_latch, fg_pen };
+wire        fg_opaque = fg_pen != 4'd0 && LVBL && LHBL;
 
 jtframe_scroll #(
     .SIZE   ( 16 ),
@@ -244,35 +245,28 @@ jtframe_scroll #(
 assign gfx_cs   = bg_rom_cs;
 assign gfx_addr = { 3'b0, bg_rom_addr };
 
+// FG ROM request: fire once per 8-pixel tile column at hdump[2:0]==1
+// (VRAM output fg_vram_q is valid 1 cycle after address changes, so pixel 1
+//  is the earliest we have stable tile-entry data for the current tile column)
 always @(posedge clk) begin
     if (rst) begin
-        fg_addr            <= 15'd0;
-        fg_cs              <= 1'b0;
-        fg_pxl             <= 8'd0;
-        fg_opaque          <= 1'b0;
-        fg_tile_entry_r    <= 16'd0;
-        fg_row_in_tile_r   <= 3'd0;
-        fg_pixel_col_r     <= 3'd0;
-        fg_palette_r       <= 4'd0;
-        fg_pixel_col_req_r <= 3'd0;
+        fg_addr         <= 15'd0;
+        fg_cs           <= 1'b0;
+        fg_row_latch    <= 32'd0;
+        fg_palette_r    <= 4'd0;
+        fg_palette_latch <= 4'd0;
     end else begin
         fg_cs <= 1'b0;
 
-        if (pxl_cen) begin
-            fg_tile_entry_r    <= fg_vram_q;
-            fg_row_in_tile_r   <= vdump[2:0];
-            fg_pixel_col_r     <= hdump[2:0];
-            fg_addr            <= { fg_tile_entry_r[11:0], fg_row_in_tile_r };
-            fg_palette_r       <= fg_tile_entry_r[15:12];
-            fg_pixel_col_req_r <= fg_pixel_col_r;
-            fg_cs              <= 1'b1;
-            fg_pxl             <= 8'd0;
-            fg_opaque          <= 1'b0;
+        if (pxl_cen && hdump[2:0] == 3'd1 && LVBL) begin
+            fg_addr      <= { fg_vram_q[11:0], vdump[2:0] };
+            fg_palette_r <= fg_vram_q[15:12];
+            fg_cs        <= 1'b1;
         end
 
         if (fg_ok) begin
-            fg_pxl    <= { fg_palette_r, fg_data[fg_nibble_base-:4] };
-            fg_opaque <= fg_data[fg_nibble_base-:4] != 4'd0;
+            fg_row_latch    <= fg_data;
+            fg_palette_latch <= fg_palette_r;
         end
     end
 end
