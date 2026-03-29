@@ -1,6 +1,8 @@
 deco_funky:
   - get:
     - jtdeco_funky_game.v
+    - jtdeco_funky_main.v
+    - jtdeco_funky_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

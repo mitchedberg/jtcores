@@ -3,6 +3,10 @@ f1gp:
     - jtf1gp_game.v
     - jtf1gp_main.v
     - jtf1gp_snd.v
+  - from: hdl
+    get:
+      - jtf1gp_main.v
+      - jtf1gp_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

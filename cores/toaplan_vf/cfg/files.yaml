@@ -3,6 +3,8 @@ toaplan_vf:
     - jttoaplan_vf_game.v
     - jttoaplan_vf_main.v
     - jttoaplan_vf_snd.v
+    - jttoaplan_vf_main.v
+    - jttoaplan_vf_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

@@ -2,6 +2,7 @@ atari_klax:
   - get:
     - jtatari_klax_game.v
     - jtatari_klax_main.v
+    - jtatari_klax_snd.v
 jtframe:
   - get:
     - jtframe_edge.v
@@ -12,12 +13,11 @@ jtframe:
   - from: cpu
     get:
       - jtframe_m68k.yaml
+      - jtframe_z80.yaml
   - from: ram
     get:
       - jtframe_dual_ram.v
       - jtframe_dual_ram16.v
-jt6295:
-  - get:
-    - jt6295.yaml
-    - jt6295_adpcm.v
-    - jt6295_acc.v
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v

@@ -3,6 +3,8 @@ gaelco:
     - jtgaelco_game.v
     - jtgaelco_main.v
     - jtgaelco_snd.v
+    - jtgaelco_main.v
+    - jtgaelco_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

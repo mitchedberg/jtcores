@@ -1,6 +1,8 @@
 deco_tumble:
   - get:
     - jtdeco_tumble_game.v
+    - jtdeco_tumble_main.v
+    - jtdeco_tumble_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

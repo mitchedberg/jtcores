@@ -3,6 +3,8 @@ blockout:
     - jtblockout_game.v
     - jtblockout_main.v
     - jtblockout_snd.v
+    - jtblockout_main.v
+    - jtblockout_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

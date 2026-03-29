@@ -1,6 +1,8 @@
-jtequites:
+equites:
   - get:
     - jtequites_game.v
+    - jtequites_main.v
+    - jtequites_snd.v
 jtframe:
   - get:
     - jtframe_edge.v
@@ -11,3 +13,7 @@ jtframe:
   - from: cpu
     get:
       - jtframe_m68k.yaml
+      - jtframe_z80.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v

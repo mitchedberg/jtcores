@@ -18,10 +18,9 @@ jtframe:
     get:
       - jtframe_dual_ram.v
       - jtframe_dual_ram16.v
-      - jtframe_obj_buffer.v
-  - from: clocking
-    get:
-      - jtframe_frac_cen.v
-jtopl:
+jt51:
   - get:
-    - jtopl.yaml
+    - jt51.yaml
+jt03:
+  - get:
+    - jt03.yaml

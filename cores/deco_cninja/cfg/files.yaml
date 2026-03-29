@@ -1,6 +1,8 @@
 deco_cninja:
   - get:
     - jtdeco_cninja_game.v
+    - jtdeco_cninja_main.v
+    - jtdeco_cninja_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

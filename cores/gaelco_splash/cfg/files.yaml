@@ -3,6 +3,8 @@ gaelco_splash:
     - jtgaelco_splash_game.v
     - jtgaelco_splash_main.v
     - jtgaelco_splash_snd.v
+    - jtgaelco_splash_main.v
+    - jtgaelco_splash_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

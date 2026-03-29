@@ -1,6 +1,8 @@
 ddragon3:
   - get:
     - jtddragon3_game.v
+    - jtddragon3_main.v
+    - jtddragon3_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

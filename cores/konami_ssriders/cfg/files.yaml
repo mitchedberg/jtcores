@@ -3,6 +3,10 @@ konami_ssriders:
     - jtkonami_ssriders_game.v
     - jtkonami_ssriders_main.v
     - jtkonami_ssriders_snd.v
+  - from: hdl
+    get:
+      - jtkonami_ssriders_main.v
+      - jtkonami_ssriders_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

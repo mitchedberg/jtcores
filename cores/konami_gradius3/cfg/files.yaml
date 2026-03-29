@@ -4,6 +4,10 @@ konami_gradius3:
     - jtkonami_gradius3_main.v
     - jtkonami_gradius3_snd.v
     - jtkonami_gradius3_video.v
+  - from: hdl
+    get:
+      - jtkonami_gradius3_main.v
+      - jtkonami_gradius3_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

@@ -2,6 +2,7 @@ deco32:
   - get:
     - jtdeco32_game.v
     - jtdeco32_main.v
+    - jtdeco32_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

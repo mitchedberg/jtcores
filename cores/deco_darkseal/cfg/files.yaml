@@ -1,6 +1,8 @@
 deco_darkseal:
   - get:
     - jtdeco_darkseal_game.v
+    - jtdeco_darkseal_main.v
+    - jtdeco_darkseal_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

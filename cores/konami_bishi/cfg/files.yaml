@@ -1,6 +1,12 @@
 jtbishi:
   - get:
     - jtbishi_game.v
+    - jtbishi_main.v
+    - jtbishi_snd.v
+  - from: hdl
+    get:
+      - jtbishi_main.v
+      - jtbishi_snd.v
 jtframe:
   - get:
     - jtframe_edge.v

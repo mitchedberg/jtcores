@@ -1,6 +1,8 @@
-jtblstroid:
+atari_blstroid:
   - get:
-    - jtblstroid_game.v
+    - jtatari_blstroid_game.v
+    - jtatari_blstroid_main.v
+    - jtatari_blstroid_snd.v
 jtframe:
   - get:
     - jtframe_edge.v
@@ -11,3 +13,11 @@ jtframe:
   - from: cpu
     get:
       - jtframe_m68k.yaml
+      - jtframe_z80.yaml
+  - from: ram
+    get:
+      - jtframe_dual_ram.v
+      - jtframe_dual_ram16.v
+  - from: clocking
+    get:
+      - jtframe_frac_cen.v

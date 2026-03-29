@@ -3,6 +3,10 @@ konami_xexex:
     - jtkonami_xexex_game.v
     - jtkonami_xexex_main.v
     - jtkonami_xexex_snd.v
+  - from: hdl
+    get:
+      - jtkonami_xexex_main.v
+      - jtkonami_xexex_snd.v
 jtframe:
   - get:
     - jtframe_edge.v
