@@ -117,7 +117,7 @@ assign sprite_height_px = { attr_height_tiles, 4'b0000 };
 assign emit_x_signed = $signed({base_x_signed[10], base_x_signed}) +
                        $signed({3'b000, disp_tile_col, 4'b0000}) +
                        $signed({8'd0, disp_local_col});
-assign emit_visible = !LVBL && emit_x_signed >= 12'sd0 && emit_x_signed < 12'sd256;
+assign emit_visible = LVBL && emit_x_signed >= 12'sd0 && emit_x_signed < 12'sd256;
 assign tile_row_offset = tile_row_code_r * width_tiles_r;
 assign cur_tile_code = base_code_r + {7'd0, tile_col_r} + {4'd0, tile_row_offset};
 assign cur_word_addr = SPR_BASE + {3'd0, cur_tile_code, 5'd0} + {15'd0, row_in_tile_r, half_r};
