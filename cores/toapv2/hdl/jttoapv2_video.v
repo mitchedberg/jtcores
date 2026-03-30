@@ -33,6 +33,7 @@ reg  [15:0] gp_voffs;
 reg  [ 3:0] gp_regsel;
 reg  [15:0] scroll_reg[0:15];
 reg  [15:0] bg_vram[0:1023];
+reg  [15:0] spr_ram[0:1023];  // 256 sprites × 4 words = 1024 words (GP9001 offsets 0x1800-0x1BFF)
 reg  [15:0] pal_ram[0:2047];
 reg  [15:0] txt_ram[0:4095];
 reg         lhbl_l;
@@ -100,6 +101,8 @@ always @(posedge clk) begin
                 2'b00: begin
                     if (gp_voffs[15:10] == 6'd0)
                         bg_vram[gp_voffs[9:0]] <= cpu_dout;
+                    else if (gp_voffs >= 16'h1800 && gp_voffs <= 16'h1BFF)
+                        spr_ram[gp_voffs[9:0]] <= cpu_dout;
                     gp_voffs <= gp_voffs + 16'd1;
                 end
                 2'b01: gp_voffs <= cpu_dout;

@@ -49,7 +49,7 @@ always @* begin
     main_cs = !ASn && A[23:20] == 4'h0;
     ram_cs = !BUSn && A[23:17] == 7'b0001_000;
     io_cs = !BUSn && A[23:6] == 18'b0010_0001_1100_0000;
-    sndlatch_cs = !BUSn && A[23:1] == 23'h10C000 && !RnW;
+    sndlatch_cs = !BUSn && A[23:1] == 23'h300000 && !RnW;
     clr_int = io_cs && !RnW;
 end
 
@@ -60,8 +60,8 @@ always @(posedge clk) snd_stb <= sndlatch_cs;
 
 always @(posedge clk)
     cpu_din <= main_cs ? main_data : ram_cs ? ram_data :
-               io_cs ? (A[3:1]==3'd0 ? {8'hFF, joystick1} :
-                        A[3:1]==3'd1 ? {8'hFF, joystick2} :
+               io_cs ? (A[3:1]==3'd0 ? {10'h3FF, joystick1} :
+                        A[3:1]==3'd1 ? {10'h3FF, joystick2} :
                         A[3:1]==3'd2 ? {dipsw[14:8], LVBL, dipsw[7:0]} : 16'hFFFF) : 16'hFFFF;
 
 jtframe_edge #(.QSET(0)) u_vbl(.rst(rst), .clk(clk), .edgeof(~LVBL), .clr(clr_int), .q(intn));

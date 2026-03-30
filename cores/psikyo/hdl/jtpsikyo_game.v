@@ -28,6 +28,9 @@ wire snd_stb;
 wire spr_cs, pal_cs, vram0_cs, vram1_cs, vregs_cs;
 wire cpu_rnw;
 
+// Video timing
+wire [8:0] hdump, vdump;
+
 // BRAM write enables: active when CPU writes and BRAM is selected
 wire [1:0] bram_we = {2{~cpu_rnw}} & ~ram_dsn;
 assign spr_we   = spr_cs   ? bram_we : 2'b00;
@@ -36,17 +39,9 @@ assign vram0_we = vram0_cs ? bram_we : 2'b00;
 assign vram1_we = vram1_cs ? bram_we : 2'b00;
 assign vregs_we = vregs_cs ? bram_we : 2'b00;
 
-// Video-side BRAM addresses (no video module yet — stub to zero)
+// Sprite BRAM address — stub (no sprite module yet)
 assign spr_addr   = 0;
-assign pal_addr   = 0;
-assign vram0_addr = 0;
-assign vram1_addr = 0;
-assign vregs_addr = 0;
 
-// Stub assignments — modules not yet instantiated
-assign red        = 0;
-assign green      = 0;
-assign blue       = 0;
 assign dip_flip   = 0;
 assign debug_view = 0;
 
@@ -72,10 +67,10 @@ jtframe_vtimer #(
 ) u_vtimer(
     .clk        ( clk             ),
     .pxl_cen    ( pxl_cen         ),
-    .vdump      (                 ),
+    .vdump      ( vdump           ),
     .vrender    (                 ),
     .vrender1   (                 ),
-    .H          (                 ),
+    .H          ( hdump           ),
     .Hinit      (                 ),
     .Vinit      (                 ),
     .LHBL       ( LHBL            ),
@@ -84,11 +79,52 @@ jtframe_vtimer #(
     .VS         ( VS              )
 );
 
-// Unused SDRAM buses
-assign tile_cs     = 0;
-assign tile_addr   = 0;
+// Object SDRAM bus — stub (no sprite module yet)
 assign obj_cs      = 0;
 assign obj_addr    = 0;
+
+`ifndef NOVIDEO
+jtpsikyo_video u_video(
+    .rst        ( rst           ),
+    .clk        ( clk           ),
+    .pxl_cen    ( pxl_cen       ),
+    .LHBL       ( LHBL          ),
+    .LVBL       ( LVBL          ),
+    .hdump      ( hdump         ),
+    .vdump      ( vdump         ),
+    .HS         ( HS            ),
+    // VRAM port B
+    .vram0_addr ( vram0_addr    ),
+    .vram0_dout ( vram0_dout    ),
+    .vram1_addr ( vram1_addr    ),
+    .vram1_dout ( vram1_dout    ),
+    // Palette port B
+    .pal_addr   ( pal_addr      ),
+    .pal_dout   ( pal_dout      ),
+    // Scroll registers port B
+    .vregs_addr ( vregs_addr    ),
+    .vregs_dout ( vregs_dout    ),
+    // GFX ROM (tile SDRAM bank)
+    .tile_addr  ( tile_addr     ),
+    .tile_cs    ( tile_cs       ),
+    .tile_data  ( tile_data     ),
+    .tile_ok    ( tile_ok       ),
+    // Pixel output
+    .red        ( red           ),
+    .green      ( green         ),
+    .blue       ( blue          )
+);
+`else
+assign tile_cs   = 0;
+assign tile_addr = 0;
+assign vram0_addr = 0;
+assign vram1_addr = 0;
+assign pal_addr   = 0;
+assign vregs_addr = 0;
+assign red        = 0;
+assign green      = 0;
+assign blue       = 0;
+`endif
 
 `ifndef NOMAIN
 jtpsikyo_main u_main(

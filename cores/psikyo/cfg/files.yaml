@@ -3,6 +3,7 @@ psikyo:
     - jtpsikyo_game.v
     - jtpsikyo_main.v
     - jtpsikyo_snd.v
+    - jtpsikyo_video.v
 jtframe:
   - get:
     - jtframe_edge.v
@@ -10,6 +11,7 @@ jtframe:
     get:
       - jtframe_vtimer.v
       - jtframe_blank.v
+      - jtframe_scroll.yaml
   - from: cpu
     get:
       - jtframe_m68k.yaml
