@@ -1,80 +1,82 @@
-# Psikyo Task: Implement BG Tile Rendering (Gunbird)
+# Psikyo Task: Sim-Test BG Tile Rendering (Gunbird)
 
 **From:** Claude orchestrator
-**Date:** 2026-03-29
-**Priority:** High — CPU already boots, this is the next milestone
+**Date:** 2026-03-29 (updated — video.v exists, now sim it)
+**Priority:** High
 
-## Context
+## Status
 
-The Psikyo core (`cores/psikyo/`) has a working 68000 CPU (verified simulating) but NO video
-output — the current `jtpsikyo_game.v` outputs `red=0, green=0, blue=0`. This task implements
-the two BG tile layers.
+`jtpsikyo_video.v` was created and lint-checked clean. It is already wired into
+`jtpsikyo_game.v` and listed in `files.yaml`.
 
-The full hardware spec is in `.shared/findings.md` (Psikyo section). Summary of what you need:
+**Your task: run a sim and verify BG tiles actually render.**
 
-## Hardware Spec
+## Step 1: Check what ROM files exist
 
-**BG Layers:** 2 independent scroll layers
-- Tile size: 16×16 pixels, 4bpp packed_msb format (SAME as NMK16 — reuse the chunky2planar logic)
-- VRAM: Layer 0 at 0x800000–0x801FFF, Layer 1 at 0x802000–0x803FFF (each 8KB = 4096 entries)
-- Each VRAM entry (16 bits): bits[12:0] = tile code (13-bit), bits[15:13] = color (3 bits)
-- Scroll regs inside 0x804000 region:
-  - Layer 0 Y scroll: offset +0x402 (word addr)
-  - Layer 0 X scroll: offset +0x406
-  - Layer 1 Y scroll: offset +0x40A
-  - Layer 1 X scroll: offset +0x40E
+```bash
+ls cores/psikyo/ver/gunbird/
+ls cores/psikyo/ver/game/
+```
 
-**Palette:** 0x600000–0x601FFF (4096 × 16-bit, xRGB_555 = same as Toaplan V2)
-- Sprite palettes: pens 0x000–0x7FF (but sprites are NOT in this task)
-- Tile palettes start at pen 0x800; pen = `0x800 + (color + layer * 0x40) * 16 + pixel_nibble`
+If `rom.bin` and `sdram_bank*.bin` exist → run with real ROMs.
+If not → run with `-skipROM` for a compile-only check.
 
-**Pixel output:** COLORW=5 (5 bits per channel)
+## Step 2: Run sim
 
-## Before Writing Any Code
+```bash
+cd cores/psikyo/ver/gunbird
+export JTROOT=/Volumes/2TB_20260220/Projects/jtcores
+export JTFRAME=$JTROOT/modules/jtframe
+export MODULES=$JTROOT/modules
+export CORES=$JTROOT/cores
+export JTBIN=$JTROOT/release
+export PATH=$PATH:$JTFRAME/bin
 
-1. **Read the primary reference:** `cores/nmk16/hdl/jtnmk16_video.v` — it already implements:
-   - `jtframe_scroll` for BG tiles (16×16, 4bpp, chunky2planar)
-   - Palette RAM (jtframe_dual_ram)
-   - Pixel output
-2. **Read the reference palette:** `cores/toapv2/hdl/jttoapv2_video.v` — for xRGB_555 decode
-3. **Grep all signal names** before using them: `grep -n "gfx_addr\|gfx_cs\|gfx_data\|gfx_ok" jtpsikyo_game.v`
-4. **Read the current stub:** `cores/psikyo/hdl/jtpsikyo_game.v` and `jtnmk16_video.v` before writing anything
+# With real ROMs (preferred):
+jtsim -frame 60 2>&1 | tee /tmp/psikyo_sim.log
 
-## Implementation Plan (in order, one at a time)
+# If no ROMs:
+jtsim -frame 30 -skipROM 2>&1 | tee /tmp/psikyo_sim.log
+```
 
-### Step 1: Create `cores/psikyo/hdl/jtpsikyo_video.v`
+After running, always link fx68k microcode (required for 68000 cores):
+```bash
+ln -sf $JTROOT/modules/fx68k/hdl/*.mem .
+```
+Then re-run if you needed microcode.
 
-Minimal module with:
-- BG VRAM 0: `jtframe_dual_ram #(.DW(16), .AW(12))` (4096 entries)
-- BG VRAM 1: `jtframe_dual_ram #(.DW(16), .AW(12))` (4096 entries)
-- Palette RAM: `jtframe_dual_ram #(.DW(16), .AW(12))` (4096 entries)
-- Scroll registers for both layers
-- `jtframe_scroll` for layer 0 (SIZE=16, VA=11, CW=13, PW=8, MAP_HW=10, MAP_VW=9, HJUMP=1)
-- `jtframe_scroll` for layer 1 (same parameters)
-- Chunky2planar conversion (reuse from NMK16 exactly)
-- 2-layer + palette priority mux (layer 0 over layer 1, transparent = 0)
-- Pixel output: `red = {pal_q[14:10]}`, `green = {pal_q[9:5]}`, `blue = {pal_q[4:0]}`
+## Step 3: Check frames
 
-Port list: same pattern as jtnmk16_video.v but with 2 scroll inputs, 2 VRAM write enables.
+```bash
+ls cores/psikyo/ver/gunbird/frames/
+```
 
-After writing: run `jtsim -lint` from `cores/psikyo/ver/gunbird` (or game/).
+View frame_00001.jpg, frame_00010.jpg, frame_00030.jpg (or whichever exist).
+Describe what you see: colors? tile patterns? sprites? blank?
 
-### Step 2: Wire it up in `jtpsikyo_game.v`
+## Step 4: Check log for CPU activity
 
-Connect the new jtpsikyo_video module, providing:
-- CPU VRAM write data (cpu_dout, rnw, cs signals)
-- GFX ROM interface (gfx_addr, gfx_cs, gfx_data, gfx_ok) from JTFRAME ports
-- Pixel output (red, green, blue) to JTFRAME ports
+```bash
+grep -i "cpu\|PAGE\|A=\|pc=" /tmp/psikyo_sim.log | head -20
+grep -i "error\|halt\|bus error\|exception" /tmp/psikyo_sim.log | head -10
+```
 
-### Step 3: Add to `cores/psikyo/cfg/mem.yaml`
+## What to return
 
-Add BG GFX ROM to BA2 (check what's already there first).
+- Did sim compile clean? (Y/N, any errors)
+- How many frames saved?
+- Frame content description (colors, patterns, anything visible?)
+- Any CPU errors or halts in log?
+- Any unexpected lint warnings from the new video module?
 
-## Constraints
-- One file at a time, compile between each
-- Grep every signal name before using it
-- Start from Step 1 only — do not modify game.v until video.v lints clean
-- Return: files created, compile results, warnings
+## Known context (from findings.md)
 
-Read `.shared/findings.md` Psikyo section before starting.
+- Psikyo CPU already boots (verified in prior session — CPU executes, sound active)
+- BG VRAM at 0x800000–0x803FFF, written by CPU at boot during attract mode
+- Palette at 0x600000–0x601FFF, xRGB_555 format
+- COLORW=5 (5-bit per channel output)
+- GFX ROM for BG tiles should be in SDRAM bank (check `cores/psikyo/cfg/mem.yaml`)
+
+Read `.shared/findings.md` before starting.
 Update `.shared/status.md` when you begin.
+Append findings to `.shared/findings.md`.
