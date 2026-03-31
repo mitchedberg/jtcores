@@ -113,11 +113,13 @@ wire fb_rd_sel   = cpu_cs & !cpu_we & cpu_addr[18];
 wire [17:0] fb_rd_addr_hi = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1], 1'b0};
 wire [17:0] fb_rd_addr_lo = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1], 1'b1};
 
+// cpu_dout: ctrl reads direct; FB reads use pre-registered fb_pix_even/odd_r (see below)
+// fb_rd_for_cpu_r is set 1 cycle after fb_rd_sel so data is valid from the single read port
 always @(posedge clk) begin
     if (ctrl_rd_sel)
         cpu_dout <= { ctrl[cpu_addr[4:1]], 8'h00 };
-    else if (fb_rd_sel)
-        cpu_dout <= {fb_mem[fb_rd_addr_hi], fb_mem[fb_rd_addr_lo]};
+    else if (fb_rd_for_cpu_r)
+        cpu_dout <= {fb_pix_even_r, fb_pix_odd_r};
     else
         cpu_dout <= 16'hFFFF; // open bus default
 end
@@ -253,42 +255,8 @@ reg [3:0] bg_px_prev_lo;
 reg [3:0] fg_px_prev_lo;
 reg [2:0] hdump_prev_lo;
 
-always @(posedge clk) begin
-    if (rst) begin
-        bg_px_prev_lo <= 0;
-        fg_px_prev_lo <= 0;
-        hdump_prev_lo <= 0;
-        bg_needs_fetch <= 1; // fetch at start
-        fg_needs_fetch <= 1;
-        tx_needs_fetch <= 1;
-    end else if (pxl_cen) begin
-        bg_px_prev_lo <= bg_px[3:0];
-        fg_px_prev_lo <= fg_px[3:0];
-        hdump_prev_lo <= hdump[2:0];
-
-        // Detect 16-pixel tile boundary for BG (when px[3:0] wraps to 0)
-        if (bg_px[3:0] == 4'd0 && bg_px_prev_lo != 4'd0)
-            bg_needs_fetch <= 1;
-        // Also fetch at start of each scanline
-        if (!LHBL && LVBL)
-            bg_needs_fetch <= 1;
-
-        // Same for FG
-        if (fg_px[3:0] == 4'd0 && fg_px_prev_lo != 4'd0)
-            fg_needs_fetch <= 1;
-        if (!LHBL && LVBL)
-            fg_needs_fetch <= 1;
-
-        // TX: 8-pixel boundary
-        if (hdump[2:0] == 3'd0 && hdump_prev_lo != 3'd0)
-            tx_needs_fetch <= 1;
-        if (!LHBL && LVBL)
-            tx_needs_fetch <= 1;
-    end
-end
-
-// VRAM read FSM — sequences through needed reads
-// Each read takes 2 system clocks (addr on clk N, data valid on clk N+1)
+// VRAM read FSM + tile boundary detection merged into one always block
+// to avoid multiple drivers on *_needs_fetch signals.
 localparam [3:0]
     VR_IDLE   = 0,
     VR_BG0_A  = 1,  // issue BG code addr
@@ -319,78 +287,106 @@ wire [14:0] tx_vaddr      = {tx_page, vdump[7:3], hdump[8:3]};
 
 always @(posedge clk) begin
     if (rst) begin
-        vr_st <= VR_IDLE;
-    end else if (!vram_sprite_mode) begin
-        case (vr_st)
-            VR_IDLE: begin
-                // Priority: BG > FG > TX
-                if (bg_needs_fetch) begin
-                    vram_addr <= bg_code_vaddr;
-                    vr_st     <= VR_BG0_A;
-                end else if (fg_needs_fetch) begin
-                    vram_addr <= fg_code_vaddr;
-                    vr_st     <= VR_FG0_A;
-                end else if (tx_needs_fetch) begin
-                    vram_addr <= tx_vaddr;
-                    vr_st     <= VR_TX_A;
+        bg_px_prev_lo  <= 0;
+        fg_px_prev_lo  <= 0;
+        hdump_prev_lo  <= 0;
+        bg_needs_fetch <= 1; // fetch at start
+        fg_needs_fetch <= 1;
+        tx_needs_fetch <= 1;
+        vr_st          <= VR_IDLE;
+    end else begin
+        // ---- Tile boundary detection (pxl_cen gated) ----
+        if (pxl_cen) begin
+            bg_px_prev_lo <= bg_px[3:0];
+            fg_px_prev_lo <= fg_px[3:0];
+            hdump_prev_lo <= hdump[2:0];
+
+            if (bg_px[3:0] == 4'd0 && bg_px_prev_lo != 4'd0)
+                bg_needs_fetch <= 1;
+            if (!LHBL && LVBL)
+                bg_needs_fetch <= 1;
+
+            if (fg_px[3:0] == 4'd0 && fg_px_prev_lo != 4'd0)
+                fg_needs_fetch <= 1;
+            if (!LHBL && LVBL)
+                fg_needs_fetch <= 1;
+
+            if (hdump[2:0] == 3'd0 && hdump_prev_lo != 3'd0)
+                tx_needs_fetch <= 1;
+            if (!LHBL && LVBL)
+                tx_needs_fetch <= 1;
+        end
+
+        // ---- VRAM read FSM (runs every cycle) ----
+        if (!vram_sprite_mode) begin
+            case (vr_st)
+                VR_IDLE: begin
+                    if (bg_needs_fetch) begin
+                        vram_addr <= bg_code_vaddr;
+                        vr_st     <= VR_BG0_A;
+                    end else if (fg_needs_fetch) begin
+                        vram_addr <= fg_code_vaddr;
+                        vr_st     <= VR_FG0_A;
+                    end else if (tx_needs_fetch) begin
+                        vram_addr <= tx_vaddr;
+                        vr_st     <= VR_TX_A;
+                    end
                 end
-            end
-            VR_BG0_A: begin
-                // addr was set, wait one clock for BRAM data
-                vr_st <= VR_BG0_D;
-            end
-            VR_BG0_D: begin
-                bg_code_lat <= vram_dout;
-                `ifdef SIMULATION
-                if (vram_dout != 0 && vdump < 9'd5)
-                    $display("VCU_TILE: bg_code=%04X addr=%04X px=%0d py=%0d cyc=%0t",
-                             vram_dout, bg_code_vaddr, bg_px, bg_py, $time);
-                `endif
-                vram_addr   <= bg_attr_vaddr;
-                vr_st       <= VR_BG1_D;
-            end
-            VR_BG1_D: begin
-                bg_attr_lat    <= vram_dout;
-                bg_needs_fetch <= 0;
-                // Chain to FG if needed
-                if (fg_needs_fetch) begin
-                    vram_addr <= fg_code_vaddr;
-                    vr_st     <= VR_FG0_A;
-                end else if (tx_needs_fetch) begin
-                    vram_addr <= tx_vaddr;
-                    vr_st     <= VR_TX_A;
-                end else begin
-                    vr_st <= VR_IDLE;
+                VR_BG0_A: begin
+                    vr_st <= VR_BG0_D;
                 end
-            end
-            VR_FG0_A: begin
-                vr_st <= VR_FG0_D;
-            end
-            VR_FG0_D: begin
-                fg_code_lat <= vram_dout;
-                vram_addr   <= fg_attr_vaddr;
-                vr_st       <= VR_FG1_D;
-            end
-            VR_FG1_D: begin
-                fg_attr_lat    <= vram_dout;
-                fg_needs_fetch <= 0;
-                if (tx_needs_fetch) begin
-                    vram_addr <= tx_vaddr;
-                    vr_st     <= VR_TX_A;
-                end else begin
-                    vr_st <= VR_IDLE;
+                VR_BG0_D: begin
+                    bg_code_lat <= vram_dout;
+                    `ifdef SIMULATION
+                    if (vram_dout != 0 && vdump < 9'd5)
+                        $display("VCU_TILE: bg_code=%04X addr=%04X px=%0d py=%0d cyc=%0t",
+                                 vram_dout, bg_code_vaddr, bg_px, bg_py, $time);
+                    `endif
+                    vram_addr <= bg_attr_vaddr;
+                    vr_st     <= VR_BG1_D;
                 end
-            end
-            VR_TX_A: begin
-                vr_st <= VR_TX_D;
-            end
-            VR_TX_D: begin
-                tx_code_lat    <= vram_dout;
-                tx_needs_fetch <= 0;
-                vr_st          <= VR_IDLE;
-            end
-            default: vr_st <= VR_IDLE;
-        endcase
+                VR_BG1_D: begin
+                    bg_attr_lat    <= vram_dout;
+                    bg_needs_fetch <= 0;
+                    if (fg_needs_fetch) begin
+                        vram_addr <= fg_code_vaddr;
+                        vr_st     <= VR_FG0_A;
+                    end else if (tx_needs_fetch) begin
+                        vram_addr <= tx_vaddr;
+                        vr_st     <= VR_TX_A;
+                    end else begin
+                        vr_st <= VR_IDLE;
+                    end
+                end
+                VR_FG0_A: begin
+                    vr_st <= VR_FG0_D;
+                end
+                VR_FG0_D: begin
+                    fg_code_lat <= vram_dout;
+                    vram_addr   <= fg_attr_vaddr;
+                    vr_st       <= VR_FG1_D;
+                end
+                VR_FG1_D: begin
+                    fg_attr_lat    <= vram_dout;
+                    fg_needs_fetch <= 0;
+                    if (tx_needs_fetch) begin
+                        vram_addr <= tx_vaddr;
+                        vr_st     <= VR_TX_A;
+                    end else begin
+                        vr_st <= VR_IDLE;
+                    end
+                end
+                VR_TX_A: begin
+                    vr_st <= VR_TX_D;
+                end
+                VR_TX_D: begin
+                    tx_code_lat    <= vram_dout;
+                    tx_needs_fetch <= 0;
+                    vr_st          <= VR_IDLE;
+                end
+                default: vr_st <= VR_IDLE;
+            endcase
+        end
     end
 end
 
@@ -421,50 +417,44 @@ reg        bg_flipx_lat;      // latched flipx for when ROM data arrives
 
 wire bg_8px_edge = (bg_px[2:0] == 3'd0);
 
-always @(posedge clk) begin
-    if (rst) begin
-        bg_shift     <= 0; bg_shift_nxt <= 0;
-        bg_pal       <= 0; bg_pal_nxt   <= 0;
-        bg_hf        <= 0; bg_hf_nxt    <= 0;
-        bg_rom_pending <= 0;
-    end else if (pxl_cen) begin
-        if (bg_8px_edge) begin
-            // Swap: next -> current
-            bg_shift <= bg_shift_nxt;
-            bg_pal   <= bg_pal_nxt;
-            bg_hf    <= bg_hf_nxt;
-            // Request ROM data for the next 8 pixels
-            // Tile code 0 = transparent sentinel (empty/blank tile); skip ROM fetch
-            if (LHBL & LVBL && bg_tile_code != 15'd0) begin
-                bg_rom_pending <= 1;
-                bg_rom_addr_lat <= {bg_tile_code, bg_px[3] ^ bg_tile_flipx, bg_eff_suby};
-                bg_color_lat    <= bg_tile_color;
-                bg_flipx_lat    <= bg_tile_flipx;
-            end else begin
-                bg_shift_nxt <= 32'd0; // tile 0 = transparent; clear next shift reg
-            end
-        end else begin
-            // Shift out pixel
-            bg_shift <= bg_hf ? (bg_shift >> 1) : (bg_shift << 1);
-        end
-    end
-end
-
-// Latch ROM data when GFX port delivers it (see arbiter below)
+// Merged: ROM latch + pixel pipeline in one always block to avoid multiple drivers
 reg bg_rom_served;
 always @(posedge clk) begin
     if (rst) begin
-        bg_rom_served <= 0;
+        bg_shift       <= 0; bg_shift_nxt <= 0;
+        bg_pal         <= 0; bg_pal_nxt   <= 0;
+        bg_hf          <= 0; bg_hf_nxt    <= 0;
+        bg_rom_pending <= 0;
+        bg_rom_served  <= 0;
     end else begin
         bg_rom_served <= 0;
-        if (bg_rom_pending && gfx_ok && gfx_cs && !bg_rom_served) begin
-            // Check that the port is serving our address
-            if (gfx_addr == bg_rom_addr_lat) begin
-                bg_shift_nxt  <= gfx_data;
-                bg_pal_nxt    <= bg_color_lat;
-                bg_hf_nxt     <= bg_flipx_lat;
-                bg_rom_pending <= 0;
-                bg_rom_served <= 1;
+        // ROM data latch — runs every cycle independent of pxl_cen
+        if (bg_rom_pending && gfx_ok && gfx_cs && !bg_rom_served &&
+                gfx_addr == bg_rom_addr_lat) begin
+            bg_shift_nxt   <= gfx_data;
+            bg_pal_nxt     <= bg_color_lat;
+            bg_hf_nxt      <= bg_flipx_lat;
+            bg_rom_pending <= 0;
+            bg_rom_served  <= 1;
+        end
+        // Pixel pipeline — pxl_cen gated
+        if (pxl_cen) begin
+            if (bg_8px_edge) begin
+                // Swap: next -> current
+                bg_shift <= bg_shift_nxt;
+                bg_pal   <= bg_pal_nxt;
+                bg_hf    <= bg_hf_nxt;
+                if (LHBL & LVBL && bg_tile_code != 15'd0) begin
+                    bg_rom_pending  <= 1;
+                    bg_rom_addr_lat <= {bg_tile_code, bg_px[3] ^ bg_tile_flipx, bg_eff_suby};
+                    bg_color_lat    <= bg_tile_color;
+                    bg_flipx_lat    <= bg_tile_flipx;
+                end else if (!bg_rom_served) begin
+                    // tile 0 = transparent; clear next shift reg only if ROM didn't just arrive
+                    bg_shift_nxt <= 32'd0;
+                end
+            end else begin
+                bg_shift <= bg_hf ? (bg_shift >> 1) : (bg_shift << 1);
             end
         end
     end
@@ -497,42 +487,38 @@ reg        fg_flipx_lat;
 
 wire fg_8px_edge = (fg_px[2:0] == 3'd0);
 
+// Merged: ROM latch + pixel pipeline in one always block to avoid multiple drivers
 always @(posedge clk) begin
     if (rst) begin
-        fg_shift     <= 0; fg_shift_nxt <= 0;
-        fg_pal       <= 0; fg_pal_nxt   <= 0;
-        fg_hf        <= 0; fg_hf_nxt    <= 0;
+        fg_shift       <= 0; fg_shift_nxt <= 0;
+        fg_pal         <= 0; fg_pal_nxt   <= 0;
+        fg_hf          <= 0; fg_hf_nxt    <= 0;
         fg_rom_pending <= 0;
-    end else if (pxl_cen) begin
-        if (fg_8px_edge) begin
-            fg_shift <= fg_shift_nxt;
-            fg_pal   <= fg_pal_nxt;
-            fg_hf    <= fg_hf_nxt;
-            // Tile code 0 = transparent sentinel (empty/blank tile); skip ROM fetch
-            if (LHBL & LVBL && fg_tile_code != 15'd0) begin
-                fg_rom_pending <= 1;
-                fg_rom_addr_lat <= {fg_tile_code, fg_px[3] ^ fg_tile_flipx, fg_eff_suby};
-                fg_color_lat    <= fg_tile_color;
-                fg_flipx_lat    <= fg_tile_flipx;
-            end else begin
-                fg_shift_nxt <= 32'd0; // tile 0 = transparent; clear next shift reg
-            end
-        end else begin
-            fg_shift <= fg_hf ? (fg_shift >> 1) : (fg_shift << 1);
-        end
-    end
-end
-
-always @(posedge clk) begin
-    if (rst) begin
-        /* nothing extra */
     end else begin
-        if (fg_rom_pending && gfx_ok && gfx_cs && !bg_rom_served) begin
-            if (gfx_addr == fg_rom_addr_lat) begin
-                fg_shift_nxt   <= gfx_data;
-                fg_pal_nxt     <= fg_color_lat;
-                fg_hf_nxt      <= fg_flipx_lat;
-                fg_rom_pending <= 0;
+        // ROM data latch — runs every cycle independent of pxl_cen
+        if (fg_rom_pending && gfx_ok && gfx_cs && !bg_rom_served &&
+                gfx_addr == fg_rom_addr_lat) begin
+            fg_shift_nxt   <= gfx_data;
+            fg_pal_nxt     <= fg_color_lat;
+            fg_hf_nxt      <= fg_flipx_lat;
+            fg_rom_pending <= 0;
+        end
+        // Pixel pipeline — pxl_cen gated
+        if (pxl_cen) begin
+            if (fg_8px_edge) begin
+                fg_shift <= fg_shift_nxt;
+                fg_pal   <= fg_pal_nxt;
+                fg_hf    <= fg_hf_nxt;
+                if (LHBL & LVBL && fg_tile_code != 15'd0) begin
+                    fg_rom_pending  <= 1;
+                    fg_rom_addr_lat <= {fg_tile_code, fg_px[3] ^ fg_tile_flipx, fg_eff_suby};
+                    fg_color_lat    <= fg_tile_color;
+                    fg_flipx_lat    <= fg_tile_flipx;
+                end else begin
+                    fg_shift_nxt <= 32'd0;
+                end
+            end else begin
+                fg_shift <= fg_hf ? (fg_shift >> 1) : (fg_shift << 1);
             end
         end
     end
@@ -663,34 +649,32 @@ reg [ 3:0] tx_pal_lat;
 
 wire tx_8px_edge = (hdump[2:0] == 3'd0);
 
+// Merged: ROM latch + pixel pipeline in one always block to avoid multiple drivers
 always @(posedge clk) begin
     if (rst) begin
-        tx_shift     <= 0; tx_shift_nxt <= 0;
-        tx_pal       <= 0; tx_pal_nxt   <= 0;
+        tx_shift       <= 0; tx_shift_nxt <= 0;
+        tx_pal         <= 0; tx_pal_nxt   <= 0;
         tx_rom_pending <= 0;
-    end else if (pxl_cen) begin
-        if (tx_8px_edge) begin
+    end else begin
+        // ROM data latch — runs every cycle independent of pxl_cen
+        if (tx_rom_pending && txt_ok) begin
+            tx_shift_nxt   <= txt_data;
+            tx_pal_nxt     <= tx_pal_lat;
+            tx_rom_pending <= 0;
+        end
+        // Pixel pipeline — pxl_cen gated
+        if (pxl_cen && tx_8px_edge) begin
             tx_shift <= tx_shift_nxt;
             tx_pal   <= tx_pal_nxt;
             if (LHBL & LVBL && tx_tile_code != 11'd0) begin
                 tx_rom_pending  <= 1;
                 tx_rom_addr_lat <= {tx_bank_val[0], tx_tile_code[10:0], vdump[2:0], 2'b00};
                 tx_pal_lat      <= tx_tile_pal;
-            end else begin
-                tx_shift_nxt <= 32'd0; // tile 0 = transparent; clear next shift reg
+            end else if (!tx_rom_pending) begin
+                // tile 0 = transparent; clear when no pending request (stale txt_ok must not block)
+                tx_shift_nxt <= 32'd0;
             end
-        end else begin
-            // tx_shift holds full 32-bit tile word; nibble selected by hdump[2:0]
         end
-    end
-end
-
-// Latch TX ROM data when ready
-always @(posedge clk) begin
-    if (!rst && tx_rom_pending && txt_ok) begin
-        tx_shift_nxt   <= txt_data;
-        tx_pal_nxt     <= tx_pal_lat;
-        tx_rom_pending <= 0;
     end
 end
 
@@ -1004,30 +988,24 @@ end
 
 // =====================================================================
 // Framebuffer — 2 pages of 512x256 8-bit pixels (262144 bytes total)
-// Address = {page[0], y[7:0], x[8:0]} = 18 bits
+// Split into even/odd banks (by address bit[0]) for single-write-port
+// BRAM inference on each bank. fb_even = addresses with LSB=0 (hi pixel),
+// fb_odd = addresses with LSB=1 (lo pixel). Index = addr[17:1] (17 bits).
 // =====================================================================
-reg [7:0] fb_mem [0:262143];
+reg [7:0] fb_even [0:131071];
+reg [7:0] fb_odd  [0:131071];
 
 // CPU write path — writes pairs of pixels as a 16-bit word
 wire fb_wr_sel = cpu_cs & cpu_we & cpu_addr[18];
-// Address: {cpu_addr[17](page), Y[7:0](cpu_addr[16:9]), X_pair[7:0](cpu_addr[8:1]), pixel_bit}
-wire [17:0] fb_wr_addr_hi = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1], 1'b0};
-wire [17:0] fb_wr_addr_lo = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1], 1'b1};
+// hi addr has LSB=0 (→ fb_even), lo addr has LSB=1 (→ fb_odd)
+wire [16:0] fb_wr_idx = {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1]};
+// Keep 18-bit wires for address logging only
+wire [17:0] fb_wr_addr_hi = {fb_wr_idx, 1'b0};
+wire [17:0] fb_wr_addr_lo = {fb_wr_idx, 1'b1};
 
-always @(posedge clk) begin
-    if (fb_wr_sel) begin
-        if (!cpu_dsn[1]) fb_mem[fb_wr_addr_hi] <= cpu_din[15:8]; // upper byte = left pixel
-        if (!cpu_dsn[0]) fb_mem[fb_wr_addr_lo] <= cpu_din[7:0];  // lower byte = right pixel
-        `ifdef SIMULATION
-        if (fb_wr_sel && cpu_din != 16'h0000 && diag_cycle > 60_000_000)
-            $display("FB_WRITE: addr=%05X data=%04X page=%b dsn=%b cyc=%0d",
-                     cpu_addr, cpu_din, fb_page, cpu_dsn, diag_cycle);
-        `endif
-    end
-end
-
-// Framebuffer clear engine — clears the write page at vblank start (unless inhibited)
-reg [17:0] fb_clr_addr;
+// Framebuffer write: clear engine (VBLANK) takes priority; CPU writes otherwise.
+// Each bank has exactly one write per clock → infers as simple/true-dual-port M10K.
+reg [16:0] fb_clr_addr; // 17-bit: indexes even+odd pair simultaneously
 reg        fb_clearing;
 
 always @(posedge clk) begin
@@ -1037,20 +1015,44 @@ always @(posedge clk) begin
     end else begin
         if (!LVBL && lvbl_prev && !fb_no_erase) begin
             fb_clearing <= 1;
-            fb_clr_addr <= {fb_page, 17'd0}; // start of write page
+            fb_clr_addr <= {fb_page, 16'd0}; // start of write page (17-bit idx)
         end
         if (fb_clearing) begin
-            fb_mem[fb_clr_addr] <= 8'h00;
-            if (fb_clr_addr[16:0] == 17'h1FFFF)
+            // Clear both banks at same index — 2 bytes per clock, clears one page in 65536 ticks
+            fb_even[fb_clr_addr] <= 8'h00;
+            fb_odd [fb_clr_addr] <= 8'h00;
+            if (fb_clr_addr[15:0] == 16'hFFFF)
                 fb_clearing <= 0;
             else
-                fb_clr_addr <= fb_clr_addr + 18'd1;
+                fb_clr_addr <= fb_clr_addr + 17'd1;
+        end else if (fb_wr_sel) begin
+            if (!cpu_dsn[1]) fb_even[fb_wr_idx] <= cpu_din[15:8];
+            if (!cpu_dsn[0]) fb_odd [fb_wr_idx] <= cpu_din[7:0];
+            `ifdef SIMULATION
+            if (cpu_din != 16'h0000 && diag_cycle > 60_000_000)
+                $display("FB_WRITE: addr=%05X data=%04X page=%b dsn=%b cyc=%0d",
+                         cpu_addr, cpu_din, fb_page, cpu_dsn, diag_cycle);
+            `endif
         end
     end
 end
 
-// Scanout — combinational read of the display page (opposite of write page)
-wire [7:0] fb_pix = fb_mem[{fb_page, vdump[7:0], hdump[8:0]}];
+// Single read port per bank: mux CPU read and scanout to avoid BRAM replication.
+// fb_rd_sel overrides scan address so CPU gets correct data via fb_pix_even/odd_r.
+// fb_rd_for_cpu_r is the registered flag; cpu_dout uses it one cycle after fb_rd_sel.
+wire [16:0] fb_scan_idx = {fb_page, vdump[7:0], hdump[8:1]};
+wire [16:0] fb_rd_idx   = fb_rd_sel ? {cpu_addr[17], cpu_addr[16:9], cpu_addr[8:1]}
+                                     : fb_scan_idx;
+reg  [7:0]  fb_pix_even_r, fb_pix_odd_r;
+reg         fb_scan_lsb_r;
+reg         fb_rd_for_cpu_r;
+always @(posedge clk) begin
+    fb_pix_even_r   <= fb_even[fb_rd_idx];
+    fb_pix_odd_r    <= fb_odd [fb_rd_idx];
+    fb_scan_lsb_r   <= hdump[0];
+    fb_rd_for_cpu_r <= fb_rd_sel;
+end
+wire [7:0] fb_pix = fb_scan_lsb_r ? fb_pix_odd_r : fb_pix_even_r;
 
 // =====================================================================
 // Simulation diagnostics

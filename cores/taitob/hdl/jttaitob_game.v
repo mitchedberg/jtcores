@@ -148,7 +148,7 @@ assign vcu_cpu_addr_w = vcu_cpu_addr[15:1];
 // =====================================================================
 // ROM address wiring (SDRAM)
 // JTFRAME port widths from mem_ports.inc:
-//   main_addr [17:1]   — jttaitob_main outputs [18:1]; drop MSB (ROM is 512KB)
+//   main_addr [18:1]   — jttaitob_main outputs [18:1]; full 18-bit word addr
 //   ram_addr  [13:1]   — jttaitob_main outputs [14:1]; drop MSB (RAM 32KB)
 //   txt_addr  [16:2]   — 32-bit bus, JTFRAME addr_width=17 → bits [16:2]
 //   gfx_addr  [19:2]   — 32-bit bus, JTFRAME addr_width=20 → bits [19:2]
@@ -165,7 +165,7 @@ wire [14:1] ram_addr_full_w;
 wire [15:0] ram_din_w;
 wire        ram_we_w;
 
-assign main_addr = main_addr_full_w[17:1];  // MSB dropped (ROM <= 512KB)
+assign main_addr = main_addr_full_w[18:1];  // full 18-bit word addr (512KB ROM)
 assign ram_addr  = ram_addr_full_w [14:1];  // full 14-bit word addr (32KB)
 assign ram_we    = ram_we_w;
 

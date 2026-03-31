@@ -15,7 +15,7 @@ sdram:
         rw: true
         offset: RAM_OFFSET
       - name: main
-        addr_width: 18
+        addr_width: 19
         data_width: 16
     - buses:
       - name: snd

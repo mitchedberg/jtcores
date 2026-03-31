@@ -119,31 +119,33 @@ end
 // FC=7 && !ASn && RnW = interrupt acknowledge cycle (from gaiden pattern)
 wire iack = (FC == 3'd7) & ~as_n & rnw;
 
-reg int4_held, int2_held;
+// Tetris ROM vector table (verified from ROM $60-$7F):
+//   Level 3 ($68): $0000_0616 — delayed VBL handler (vcu_intl)
+//   Level 4 ($6C): $0000_0000 — NULL, not used
+//   Level 5 ($70): $0000_05FA — main VBL handler (vcu_inth)
+// Previous incorrect assignment (4/2) caused NULL vector jumps each VBL → re-init loop.
+reg int5_held, int3_held;
 reg vcu_inth_prev, vcu_intl_prev;
 
 always @(posedge clk) begin
     if( rst ) begin
-        int4_held <= 0;
-        int2_held <= 0;
+        int5_held <= 0;
+        int3_held <= 0;
         vcu_inth_prev <= 0;
         vcu_intl_prev <= 0;
     end else begin
         vcu_inth_prev <= vcu_inth;
         vcu_intl_prev <= vcu_intl;
-        // Latch on rising edge of interrupt signal
-        if( vcu_inth & ~vcu_inth_prev ) int4_held <= 1;
-        if( vcu_intl & ~vcu_intl_prev ) int2_held <= 1;
-        // Clear on IACK
+        if( vcu_inth & ~vcu_inth_prev ) int5_held <= 1;
+        if( vcu_intl & ~vcu_intl_prev ) int3_held <= 1;
         if( iack ) begin
-            int4_held <= 0;
-            int2_held <= 0;
+            int5_held <= 0;
+            int3_held <= 0;
         end
     end
 end
 
-wire [2:0] ipln = int4_held ? ~3'd4 :
-                  int2_held ? ~3'd2 : 3'b111;
+wire [2:0] ipln = int5_held ? ~3'd5 : int3_held ? ~3'd3 : 3'b111;
 
 // DTACK generation
 wire dtack_n;
@@ -178,6 +180,7 @@ reg [31:0] main_rom_cnt, main_ram_cnt, main_vcu_cnt, main_ioc_cnt, main_pal_cnt,
 reg [31:0] main_vcu_rd_cnt, main_vcu_wrx_cnt;
 reg [31:0] main_boot_cnt;
 reg [31:0] main_periph_cnt;
+reg [31:0] main_vram_rd_cnt, main_vram_wr_cnt, main_spram_wr_cnt;
 reg [31:0] main_wr_cnt;
 always @(posedge clk) begin
     if (rst) begin
@@ -189,6 +192,7 @@ always @(posedge clk) begin
         main_vcu_rd_cnt <= 0; main_vcu_wrx_cnt <= 0;
         main_boot_cnt <= 0;
         main_periph_cnt <= 0;
+        main_vram_rd_cnt <= 0; main_vram_wr_cnt <= 0; main_spram_wr_cnt <= 0;
     end else begin
         main_diag_cycle <= main_diag_cycle + 1;
         if (cpu_cen) main_cen_cnt <= main_cen_cnt + 1;
@@ -244,6 +248,29 @@ always @(posedge clk) begin
                      cpu_din, cpu_dout, dsn, main_diag_cycle);
         end
         // Track PC at periodic intervals
+        // VRAM-specific read tracker (A[18:16]==000 = $400000-$40FFFF, separate from SPRAM)
+        if (vcu_area && rnw && mem_acc && cpu_cen && A[18:16] == 3'b000 && main_vram_rd_cnt < 50) begin
+            main_vram_rd_cnt <= main_vram_rd_cnt + 1;
+            $display("VRAM_RD: #%0d A=%06X vcu_addr=%05X data=%04X dsn=%b cyc=%0d",
+                     main_vram_rd_cnt, A, A[18:1], cpu_din, dsn, main_diag_cycle);
+        end
+        // VRAM write tracker (A[18:16]==000)
+        if (vcu_area && ~rnw && mem_acc && cpu_cen && A[18:16] == 3'b000 && main_vram_wr_cnt < 10) begin
+            main_vram_wr_cnt <= main_vram_wr_cnt + 1;
+            $display("VRAM_WR: #%0d A=%06X vcu_addr=%05X data=%04X dsn=%b cyc=%0d",
+                     main_vram_wr_cnt, A, A[18:1], cpu_dout, dsn, main_diag_cycle);
+        end
+        // SPRAM write tracker (A[18:16]==001 = $410000-$41FFFF)
+        if (vcu_area && ~rnw && mem_acc && cpu_cen && A[18:16] == 3'b001 && main_spram_wr_cnt < 10) begin
+            main_spram_wr_cnt <= main_spram_wr_cnt + 1;
+            $display("SPRAM_WR: #%0d A=%06X vcu_addr=%05X data=%04X dsn=%b cyc=%0d",
+                     main_spram_wr_cnt, A, A[18:1], cpu_dout, dsn, main_diag_cycle);
+        end
+        // Summary at cycle boundaries for VRAM diagnostics
+        if (main_diag_cycle == 32'd45_000_000 || main_diag_cycle == 32'd55_000_000)
+            $display("VRAM_DIAG: cyc=%0d vram_rd=%0d vram_wr=%0d spram_wr=%0d vcu_total=%0d",
+                     main_diag_cycle, main_vram_rd_cnt, main_vram_wr_cnt, main_spram_wr_cnt, main_vcu_cnt);
+
         if (main_diag_cycle == 32'd30_000_000 || main_diag_cycle == 32'd40_000_000 ||
             main_diag_cycle == 32'd50_000_000)
             $display("MAIN_PC: A=%06X rnw=%b as_n=%b cyc=%0d", A, rnw, as_n, main_diag_cycle);
