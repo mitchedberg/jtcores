@@ -120,32 +120,33 @@ end
 wire iack = (FC == 3'd7) & ~as_n & rnw;
 
 // Tetris ROM vector table (verified from ROM $60-$7F):
-//   Level 3 ($68): $0000_0616 — delayed VBL handler (vcu_intl)
-//   Level 4 ($6C): $0000_0000 — NULL, not used
-//   Level 5 ($70): $0000_05FA — main VBL handler (vcu_inth)
-// Previous incorrect assignment (4/2) caused NULL vector jumps each VBL → re-init loop.
-reg int5_held, int3_held;
+//   Level 2 ($68): $0000_0616 — delayed VBL handler (vcu_intl)
+//   Level 3 ($6C): $0000_0000 — NULL, not used
+//   Level 4 ($70): $0000_05FA — main VBL handler (vcu_inth)
+//   Level 5 ($74): $0000_0000 — NULL, not used
+// 68000 autovector formula: Level N → (N+24)*4. Level 4→0x70, Level 2→0x68.
+reg int4_held, int2_held;
 reg vcu_inth_prev, vcu_intl_prev;
 
 always @(posedge clk) begin
     if( rst ) begin
-        int5_held <= 0;
-        int3_held <= 0;
+        int4_held <= 0;
+        int2_held <= 0;
         vcu_inth_prev <= 0;
         vcu_intl_prev <= 0;
     end else begin
         vcu_inth_prev <= vcu_inth;
         vcu_intl_prev <= vcu_intl;
-        if( vcu_inth & ~vcu_inth_prev ) int5_held <= 1;
-        if( vcu_intl & ~vcu_intl_prev ) int3_held <= 1;
+        if( vcu_inth & ~vcu_inth_prev ) int4_held <= 1;
+        if( vcu_intl & ~vcu_intl_prev ) int2_held <= 1;
         if( iack ) begin
-            int5_held <= 0;
-            int3_held <= 0;
+            int4_held <= 0;
+            int2_held <= 0;
         end
     end
 end
 
-wire [2:0] ipln = int5_held ? ~3'd5 : int3_held ? ~3'd3 : 3'b111;
+wire [2:0] ipln = int4_held ? ~3'd4 : int2_held ? ~3'd2 : 3'b111;
 
 // DTACK generation
 wire dtack_n;
